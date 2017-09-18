@@ -1,3 +1,6 @@
+'''
+usage: python main.py TiO2_110.pdb
+'''
 from Wetter import Wetter
 import sys
 import argcomplete

@@ -37,6 +37,7 @@ class Wetter:
 		self.float_format = lambda x: "%.3f" % x
 
 
+		#Not used.......
 	def createWater(self, coord, r):
 		O = [coord[0], coord[1], coord[2]]
 		H1 = [r*np.sin(self.theta/2), 0, r*np.cos(self.theta/2)]
@@ -64,14 +65,17 @@ class Wetter:
 	   		print 'found'
 
 	   	new_content = content[:indices[-1] + 1]
+	   	
 	   	#Append new atoms
 	   	new_content.extend(atomList)
 	   	new_content.extend(content[indices[-1] + 1:])
 
+	   	#Print to file
+
 	   	#for line in new_content:
 	   	#	print line
 
-	   		#Calculate M-O vectors
+	#Calculate M-O vectors
 	def calculateVectors(self):
 		if(self.verbose):
 			print("Ind:")
@@ -79,9 +83,7 @@ class Wetter:
 			print("neighbourgraph:")
 			print self.neighbourgraph
 
-		#Initialize array to hold vectors (quick fix......)
-		#vectors = np.array([[-1, -1, -1, -1]])
-
+		#Initialize array to hold vectors
 		vectors = np.empty([0, 4], dtype=float)	#change initializer....
 		coords = np.array([[-1, -1, -1]])
 
@@ -104,6 +106,7 @@ class Wetter:
 										self.topol.trj.xyz[0][center][1] + vec[2],
 										self.topol.trj.xyz[0][center][2] + vec[3]])
 					
+					#Save coords and correct units
 					coords = np.vstack((coords, coord*10))
 					vectors = np.vstack((vectors, vec))
 
