@@ -1,10 +1,10 @@
 '''
 To-do list: 
-1. correctly structure lines to be appended to pdb-file (index of atom...)
-2. Add water molecules (calculate coordinates, angles etc)
-3. Restructure (Make the code more effective etc)
-4. Add support different environments
-5. Add support for different metals
+. Add water molecules (calculate coordinates, angles etc)
+. Edge cases, directional vector = (0, 0, 1)
+. Restructure (Make the code more effective etc)
+. Add support different environments
+. Add support for different metals
 
 . remove low (N < Nmax-1) coordinated atoms
 
@@ -19,13 +19,15 @@ from tqdm import tqdm
 
 class Wetter:
 
-	def __init__(self, file, verbose, theta = 104.5, frac=0.4, MOBondlength = 2, MEnvironment = 5):
+	def __init__(self, file, verbose, theta = 104.5, frac=0.4, MOBondlength = 2, MEnvironment = 5, HOHBondlength = 1, OHBondlength = 1):
 		#Input parameters
 		self.theta = theta
 		self.frac = frac
 		self.file = file
 		self.verbose = verbose
 		self.MOBondlength = MOBondlength
+		self.HOHBondlength = HOHBondlength
+		self.OHBondlength = OHBondlength
 
 		#Prepare input file for processing
 		self.topol = Topologizer.from_coords(file)
@@ -39,15 +41,65 @@ class Wetter:
 		#Format float precision
 		self.float_format = lambda x: "%.3f" % x
 
+	#Rotates around x-axis
+	def xRotate(self, vector, angle):
+		rotMatrix = [[1, 0, 0], [0, np.cos(angle), -np.sin(angle)], [0, np.sin(angle), np.cos(angle)]]
+		dotProd = np.dot(rotMatrix, vector)
+		return (dotProd)
 
-		#Not used.......
-	def createWater(self, coord, r):
-		O = [coord[0], coord[1], coord[2]]
-		H1 = [r*np.sin(self.theta/2), 0, r*np.cos(self.theta/2)]
-		H2 = [r*np.sin(-self.theta/2), 0, r*np.cos(-self.theta/2)]
+	#Calculate rotation matrix by rotating z-axis (0, 0, 1) to align with MO-vector
+	def align(self, vec1, vec2):
+		I = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+		crossProd = np.cross(vec1, vec2)	#sine
+		dotProd = np.dot(vec1, vec2)	#cosine
+		print("crossprod: " + str(crossProd))
+		print("dotprod: " + str(dotProd))
+
+		#Edge cases: If vectors are parallell since dot product of normalized vectors is the cosine of the angle.
+		if(dotProd < 1.01 and dotProd > 0.99):
+			rotMatrix = -I
+
+		elif(dotProd < -0.99 and dotProd > -1.01):
+			#Find orthonormal vector to both (cross product) and rotate pi
+			mag = np.sqrt(crossProd[0]**2 + crossProd[1]**2 + crossProd[2]**2)
+			ortVec = crossProd/mag
+
+			rotMatrix = np.array([], [], [])
+			pass
+
+		else:
+			#skew-symmetric: transpose equals negative. Used to represent cross product as matrix multiplication
+			skewSym	= np.array([[0, -crossProd[2], crossProd[1]],[crossProd[2], 0, -crossProd[0]],[-crossProd[1], crossProd[0], 0]])
+			prod = np.matmul(skewSym, skewSym)*(1/(1+dotProd))
+			rotMatrix = np.add(np.add(I, skewSym), prod)
+
+		return rotMatrix
+
+	def createWater(self, coords, vectors):
+		O = [0, 0, 0]
+		H1 = [np.sin(self.theta/2), 0, np.cos(self.theta/2)]
+		H2 = [-np.sin(self.theta/2), 0, np.cos(self.theta/2)]
+
+		H1 = self.xRotate(H1, np.pi/5)
+		H2 = self.xRotate(H2, np.pi/5)
+		#O = self.xRotate(O, np.pi/5)
+		i = 49
+		rotMatrix = self.align([0, 0, 1], [vectors[i][0], vectors[i][1], vectors[i][2]])
+		print("Rotmatrix: " + str(rotMatrix))
+		O = np.dot(rotMatrix, O)
+		H1 = np.dot(rotMatrix, H1)
+		H2 = np.dot(rotMatrix, H2)
+
+		#Translate to correct coordinates
+		transVector = [coords[i][0] - O[0], coords[i][1] - O[1], coords[i][2] - O[2]]
+		O = [O[0] + transVector[0], O[1] + transVector[1], O[2] + transVector[2]]
+		H1 = [H1[0] + transVector[0], H1[1] + transVector[1], H1[2] + transVector[2]]
+		H2 = [H2[0] + transVector[0], H2[1] + transVector[1], H2[2] + transVector[2]]
+
+		self.appendAtoms(coords = [O, H1, H2])
 
 		#Append atoms to .pdb file
-	def appendAtoms(self, atomList = [], element='H', coords=[[0,0,0],[1,1,1]]):
+	def appendAtoms(self, atomList = [], element='H', coords=[[0,0,0],[1,1,1]], elements = []):
 		f = open(self.file, "r")
 		content = f.readlines()
 		f.close()
@@ -56,7 +108,7 @@ class Wetter:
 		indices = [index for index, line in enumerate(content) if 'ATOM' in line]
 
 		#get number of atoms
-		nrAtoms = self.topol.trj.top.n_atoms
+		nrAtoms = len(indices)#self.topol.trj.top.n_atoms
 
 		#Variables for the .pdb format
 		residueName = 'TiO'
@@ -187,23 +239,28 @@ class Wetter:
 				#M-O vector
 				tempVec = np.array([vec_x, vec_y, vec_z])
 
+				#normalize
+				mag = np.sqrt(tempVec[0]**2 + tempVec[1]**2 + tempVec[2]**2)
+				tempVec = tempVec/mag
+
 				#Sum vectors
 				vec = [vec[0] + tempVec[0], vec[1] + tempVec[1], vec[2] + tempVec[2]]
 
 			#normalize
 			mag = np.sqrt(vec[0]**2 + vec[1]**2 + vec[2]**2)
 			vec = [vec[0]/mag, vec[1]/mag, vec[2]/mag]
+			vectors = np.vstack((vectors, vec))
+
+			#Set vector length
+			vec = [vec[0]*self.MOBondlength, vec[1]*self.MOBondlength, vec[2]*self.MOBondlength]
 
 			#Coordinates where oxygen should be placed: vec + coordinate of metal atom multiplied with bondlength
-			coord = np.array([self.topol.trj.xyz[0][center][0] + vec[0],
-								self.topol.trj.xyz[0][center][1] + vec[1],
-								self.topol.trj.xyz[0][center][2] + vec[2]])
-			
-			#print(coord)
+			coord = np.array([self.topol.trj.xyz[0][center][0]*10 + vec[0],
+								self.topol.trj.xyz[0][center][1]*10 + vec[1],
+								self.topol.trj.xyz[0][center][2]*10 + vec[2]])
 
 			#Save coords and correct units
-			coords = np.vstack((coords, coord*10))
-			vectors = np.vstack((vectors, vec))
+			coords = np.vstack((coords, coord))
 
 		print("Added " + str(len(coords)) + " atoms")
 		return vectors, coords
@@ -216,8 +273,8 @@ class Wetter:
 
 		#print whole number and not 1.234 e+4 etc, will remove later....
 		np.set_printoptions(suppress=True)
-		self.appendAtoms(coords = coords)
-
+		#self.appendAtoms(coords = coords)
+		self.createWater(coords, vectors)
 		if(self.verbose):
 			for vector in vectors:
 				print("Vector: " + str(i))
