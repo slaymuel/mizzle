@@ -57,15 +57,18 @@ class Wetter:
 
 		#Edge cases: If vectors are parallell since dot product of normalized vectors is the cosine of the angle.
 		if(dotProd < 1.01 and dotProd > 0.99):
+			print("dotprod is 1")
 			rotMatrix = -I
 
 		elif(dotProd < -0.99 and dotProd > -1.01):
+			print("dotprod is -1")
 			#Find orthonormal vector to both (cross product) and rotate pi
 			mag = np.sqrt(crossProd[0]**2 + crossProd[1]**2 + crossProd[2]**2)
 			ortVec = crossProd/mag
 
-			rotMatrix = np.array([], [], [])
-			pass
+			rotMatrix = -np.array([[-1+2*ortVec[0]**2, 2*ortVec[0]*ortVec[1], 2*ortVec[0]*ortVec[2]],
+								[2*ortVec[0]*ortVec[1], -1+2*ortVec[1]**2, 2*ortVec[1]*ortVec[2]],
+								[2*ortVec[0]*ortVec[2], 2*ortVec[1]*ortVec[2], -1+2*ortVec[2]**2]])
 
 		else:
 			#skew-symmetric: transpose equals negative. Used to represent cross product as matrix multiplication
@@ -85,7 +88,7 @@ class Wetter:
 		#O = self.xRotate(O, np.pi/5)
 		i = 49
 		rotMatrix = self.align([0, 0, 1], [vectors[i][0], vectors[i][1], vectors[i][2]])
-		print("Rotmatrix: " + str(rotMatrix))
+		print("Rotmatrix: \n" + str(rotMatrix))
 		O = np.dot(rotMatrix, O)
 		H1 = np.dot(rotMatrix, H1)
 		H2 = np.dot(rotMatrix, H2)
@@ -120,7 +123,6 @@ class Wetter:
 		#Prepare list of atoms to be appended to pdb file
 		for coord in coords:
 			
-			#nrAtoms += 1
 			i = 4
 			nrAtoms += 1
 			tempString = "ATOM"
@@ -203,9 +205,11 @@ class Wetter:
 	   	if(content[indices[-1] + 1][:3] == 'TER'):
 	   		print 'found'
 
+	   	#Get old content of file until last atom entry
 	   	new_content = content[:indices[-1] + 1]
 	   	#Append new atoms
 	   	new_content.extend(atomList)
+	   	#append lines after the final atom entry
 	   	new_content.extend(content[indices[-1] + 1:])
 
 	   	#Print to file
@@ -273,6 +277,7 @@ class Wetter:
 
 		#print whole number and not 1.234 e+4 etc, will remove later....
 		np.set_printoptions(suppress=True)
+
 		#self.appendAtoms(coords = coords)
 		self.createWater(coords, vectors)
 		if(self.verbose):
@@ -282,9 +287,6 @@ class Wetter:
 				i = i + 1
 			i=0
 			
-			#"ATOM      1 Ti   TiO A   1       0.000   0.000  36.728  1.00  0.00          Ti"
-			#"ATOM      1 Ti   TiO A   1       float_format(coord[0])   float_format(coord[1])  float_format(coord[2])  1.00  0.00          Ti"
-			#self.appendAtoms(atomList)
 			for coord in coords:
 				#print("coord: " + str(i))
 				print (coord)
