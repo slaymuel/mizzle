@@ -33,7 +33,7 @@ def main(argv=None):
 	print "The file list is:"
 	print "\"" + " ".join(args.files) + "\""   
 
-	wetter = Wetter(args.files[0], args.verbose)
+	wetter = Wetter(args.files[1], args.verbose)
 
 	wetter.wet()
 
