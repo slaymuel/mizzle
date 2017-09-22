@@ -40,6 +40,7 @@ def append_atoms(file, atomList = [], element='H', coords=[[0,0,0],[1,1,1]], ele
 	occupancy = '1.00'
 	temperatureFactor = '0.00'
 
+	j = 0
 	#Prepare list of atoms to be appended to pdb file
 	for coord in coords:
 		
@@ -53,9 +54,9 @@ def append_atoms(file, atomList = [], element='H', coords=[[0,0,0],[1,1,1]], ele
 				tempString += str(nrAtoms)
 				i += len(str(nrAtoms))
 
-			elif(i + len(element) == 14):
-				tempString += element
-				i += len(element)
+			elif(i + len(elements[j]) == 14):
+				tempString += elements[j]
+				i += len(elements[j])
 
 			elif(i + len(residueName) == 20):
 				tempString += residueName
@@ -90,11 +91,12 @@ def append_atoms(file, atomList = [], element='H', coords=[[0,0,0],[1,1,1]], ele
 				i += len(temperatureFactor)
 
 			elif(i == 76):
-				tempString += element
-				i += len(element)
+				tempString += elements[j]
+				i += len(elements[j])
 
 			tempString += " "
 			i += 1
+		j += 1
 
 		#Append formatted tempString
 		atomList.append(tempString)
@@ -115,5 +117,5 @@ def append_atoms(file, atomList = [], element='H', coords=[[0,0,0],[1,1,1]], ele
 	for line in new_content:
 		file.write("%s\n" % line.rstrip())	#also remove newline characters
 	file.close()
-	
+
 	print("Added " + str(len(coords)) + " atoms to pdb file.")
