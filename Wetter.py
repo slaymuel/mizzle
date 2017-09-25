@@ -1,13 +1,17 @@
 '''
 To-do list: 
+. Remove Nmax-3 atoms
 . Add water molecules (calculate coordinates, angles etc)
-. Edge cases, directional vector = (0, 0, 1)
 . Put 2 molecules on Nmax-2 coordinated centers
 . Restructure (Make the code more effective etc)
+. Boundary conditions, affects distance between atoms
 . Add support different environments
 . Add support for different metals
-
+. Tkinter GUI?
 . remove low (N < Nmax-1) coordinated atoms
+
+Notes:
+Add water to water+hydroxyl fraction then remove one hydrogen from totalAdded - water fraction
 
 '''
 
@@ -17,7 +21,8 @@ import numpy as np
 import pandas as pd
 import pdbAppender
 import random
-import quaternion as quat
+import re
+#import quaternion as quat
 from pyquaternion import Quaternion
 from radish import Topologizer
 from tqdm import tqdm
@@ -42,15 +47,46 @@ class Wetter:
 		#Set Nmax
 		self.Nmax = self.topol.bondgraph['i'].value_counts().max()
 
-		#Get centers for environment
-		self.ind = self.topol.extract('Ti', environment = {'O': self.Nmax - 1}).index.get_level_values(1)
-
-		#Construct neighbourgraph where columns are metal centers and rows their coordination shell
-		#Sort_values unecessary but nice for readability, will remove later....
-		self.neighbourgraph = self.topol.bondgraph.loc[self.topol.bondgraph['j'].isin(self.ind)].sort_values(['j'])[['i', 'j']].pivot(columns= 'j').apply(lambda x: pd.Series(x.dropna().values)).apply(np.int64)['i']
-
 		#Format float precision(will remove from here later maybe....)
 		self.float_format = lambda x: "%.3f" % x
+
+	#Remove underccordinated atoms
+	def removeUndercoordinated(self):
+		Nmax = self.topol.bondgraph['i'].value_counts().max()
+		indices = self.topol.extract('Ti', environment = {'O': self.Nmax - 3}).index.get_level_values(1)
+		print(indices)
+		f = open(self.file, 'r')
+		content = f.readlines()
+		f.close
+
+		#Create regular expressions to find undercoordinated atoms by their index
+		regexes = []
+		for index in indices:
+			regexes.append(re.compile("ATOM\s*" + str(index) + " "))
+
+		#regexes = "(" + ")|(".join(regexes) + ")"
+		print("Number of uncoordinated: " + str(len(indices)))
+		print("Length of file: " + str(len(content)))
+		#while(len(indices > 0)):
+		newContent = []
+
+		i = 0
+		for line in content:
+			if any(regex.match(line) for regex in regexes):
+				i += 1
+
+		print(str(i) + " undercoordinated atoms found.")
+
+		# file = open('test.pdb', 'w')
+		# for line in newContent:
+		# 	file.write("%s\n" % line.rstrip())	#also remove newline characters
+		# file.close()
+		#print("Length after removal:" + str(len(content) - i))
+
+		# indices = self.topol.extract('Ti', environment = {'O': self.Nmax - 3}).index.get_level_values(1)
+		# self.topol = Topologizer.from_coords('test.pdb')
+		# self.topol.topologize()
+		# indices = self.topol.extract('Ti', environment = {'O': self.Nmax - 3}).index.get_level_values(1)
 
 	#Rotates around x-axis
 	def xRotate(self, vector, angle):
@@ -69,16 +105,16 @@ class Wetter:
 		I = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
 		crossProd = np.cross(vec1, vec2)	#sine
 		dotProd = np.dot(vec1, vec2)	#cosine
-		print("crossprod: " + str(crossProd))
-		print("dotprod: " + str(dotProd))
+		#print("crossprod: " + str(crossProd))
+		#print("dotprod: " + str(dotProd))
 
 		#Edge cases: If vectors are parallell since dot product of normalized vectors is the cosine of the angle.
 		if(dotProd < 1.01 and dotProd > 0.99):
-			print("dotprod is 1")
+			#print("dotprod is 1")
 			rotMatrix = I
 
 		elif(dotProd < -0.99 and dotProd > -1.01):
-			print("dotprod is -1")
+			#print("dotprod is -1")
 			#Find orthonormal vector to both (cross product) and rotate pi
 			#mag = np.sqrt(crossProd[0]**2 + crossProd[1]**2 + crossProd[2]**2)
 			#ortVec = crossProd/mag
@@ -96,7 +132,7 @@ class Wetter:
 
 		return rotMatrix
 
-	def createWater(self, coords, vectors):
+	def addAtoms(self, coords, vectors):
 		atoms = np.empty([0, 3], dtype=float)
 		elements = []
 		i=0
@@ -125,6 +161,7 @@ class Wetter:
 			#randRotMatrix = self.randomRot(vectors[i], random.uniform(0.1, 2*np.pi))
 			#randRotMatrix = self.randomRot(vectors[i], 1.2)
 
+			#Rotate randomly around the directional vector
 			axis = vectors[i]
 			theta = random.uniform(0.1, 2*np.pi)
 			O = Quaternion(axis=axis,angle=theta).rotate(O)
@@ -164,15 +201,31 @@ class Wetter:
 			print("neighbourgraph:")
 			print self.neighbourgraph
 
+		#Get centers for environment
+		centerIndices = self.topol.extract('Ti', environment = {'O': self.Nmax - 1}).index.get_level_values(1)
+		#Construct neighbourgraph where columns are metal centers and rows their coordination shell
+		#Sort_values unecessary but nice for readability, will remove later....
+		neighbourgraph = self.topol.bondgraph.loc[self.topol.bondgraph['j'].isin(centerIndices)].sort_values(['j'])[['i', 'j']].pivot(columns= 'j').apply(lambda x: pd.Series(x.dropna().values)).apply(np.int64)['i']
+
 		vectors = np.empty([0, 3], dtype=float)
+		#pairVectors = vectors = np.empty([0, 3], dtype=float)
 		coords = np.empty([0, 3], dtype=float)
 		vec = np.array([0,0,0])
+		#pairVec = np.array([0,0,0])
+
+		#Calculate only for user specified fraction
+		randIndices = np.random.randint(len(centerIndices), size=int(self.waterFrac * float(len(centerIndices))))
+		indices = centerIndices[randIndices]
 
 		#Calculate M-O vectors
-		for center in tqdm(self.ind, ascii=True, desc='Calculating directional vectors'):
+		for center in tqdm(indices, ascii=True, desc='Calculating directional vectors'):
 			#Only calculate for the fraction that will actually get hydrated (change this later to actually choose that fraction)
 			vec = [0, 0, 0]
-			for neighbour in self.neighbourgraph[center]:
+			for neighbour in neighbourgraph[center]:
+				# for otherNeighbour in self.neighbourgraph[center]:
+				# 	vec_x = self.topol.trj.xyz[0][center][0] - self.topol.trj.xyz[0][neighbour][0]
+				# 	vec_y = self.topol.trj.xyz[0][center][1] - self.topol.trj.xyz[0][neighbour][1]
+				# 	vec_z = self.topol.trj.xyz[0][center][2] - self.topol.trj.xyz[0][neighbour][2]
 				#M-O Vector components
 				vec_x = self.topol.trj.xyz[0][center][0] - self.topol.trj.xyz[0][neighbour][0]
 				vec_y = self.topol.trj.xyz[0][center][1] - self.topol.trj.xyz[0][neighbour][1]
@@ -209,19 +262,15 @@ class Wetter:
 
 	def wet(self):
 		#get coordinates where oxygen should be placed
+		#self.removeUndercoordinated()
 		vectors, coords = self.calculateVectors()
 		i = 0
-		randIndices = np.array(range(len(coords)))
-		randCoords = random.sample(randIndices, int(self.waterFrac * float(len(coords))))
 
-		#coords = np.take(coords, randIndices)
-		#vectors = np.take(vectors, randIndices)
 		#Check for overlap
 		#print whole number and not 1.234 e+4 etc, will remove later....
 		np.set_printoptions(suppress=True)
 
-		#self.appendAtoms(coords = coords)
-		self.createWater(coords, vectors)
+		self.addAtoms(coords, vectors)
 
 		if(self.verbose):
 			for vector in vectors:
@@ -231,6 +280,5 @@ class Wetter:
 			i=0
 			
 			for coord in coords:
-				#print("coord: " + str(i))
 				print (coord)
 				i = i + 1
