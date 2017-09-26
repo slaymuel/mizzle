@@ -5,12 +5,14 @@ from Wetter import Wetter
 import sys
 import argcomplete
 import argparse
+from pdbExplorer import removeLowerCoordinated
 
 class CustomFormatter(argparse.ArgumentDefaultsHelpFormatter,
                       argparse.RawDescriptionHelpFormatter):
     pass
 
 def main(argv=None):
+
 	if argv is None:
 		argv = sys.argv
 
@@ -33,7 +35,8 @@ def main(argv=None):
 	print "The file list is:"
 	print "\"" + " ".join(args.files) + "\""   
 
-	wetter = Wetter(args.files[1], args.verbose)
+	file = removeLowerCoordinated(args.files[1])
+	wetter = Wetter(file, args.verbose)
 
 	wetter.wet()
 

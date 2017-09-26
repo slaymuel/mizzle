@@ -1,6 +1,6 @@
 '''
 To-do list: 
-. Remove Nmax-3 atoms
+. Remove one coordinated oxygens?
 . Add water molecules (calculate coordinates, angles etc)
 . Put 2 molecules on Nmax-2 coordinated centers
 . Restructure (Make the code more effective etc)
@@ -19,9 +19,8 @@ Add water to water+hydroxyl fraction then remove one hydrogen from totalAdded - 
 # ase
 import numpy as np
 import pandas as pd
-import pdbAppender
+from pdbExplorer import append_atoms
 import random
-import re
 #import quaternion as quat
 from pyquaternion import Quaternion
 from radish import Topologizer
@@ -40,53 +39,40 @@ class Wetter:
 		self.HOHBondlength = HOHBondlength
 		self.OHBondlength = OHBondlength
 		self.theta = theta/360*2*np.pi
+
 		#Prepare input file for processing
 		self.topol = Topologizer.from_coords(file)
 		self.topol.topologize()
-
 		#Set Nmax
 		self.Nmax = self.topol.bondgraph['i'].value_counts().max()
+		#Get centers for environment
+		self.centerIndices = self.topol.extract('Ti', environment = {'O': self.Nmax - 1}).index.get_level_values(1)
+		#Construct neighbourgraph where columns are metal centers and rows their coordination shell
+		#Sort_values unecessary but nice for readability, will remove later....
+		self.neighbourgraph = self.topol.bondgraph.loc[self.topol.bondgraph['j'].isin(self.centerIndices)].sort_values(['j'])[['i', 'j']].pivot(columns= 'j').apply(lambda x: pd.Series(x.dropna().values)).apply(np.int64)['i']
 
 		#Format float precision(will remove from here later maybe....)
 		self.float_format = lambda x: "%.3f" % x
+		
 
-	#Remove underccordinated atoms
-	def removeUndercoordinated(self):
-		Nmax = self.topol.bondgraph['i'].value_counts().max()
-		indices = self.topol.extract('Ti', environment = {'O': self.Nmax - 3}).index.get_level_values(1)
-		print(indices)
-		f = open(self.file, 'r')
-		content = f.readlines()
-		f.close
+	#NOT USED
+	def find_under_coordinated(self, atom):
+		for neighbour in self.topol.bondgraph.loc[self.topol.bondgraph['j'] == atom, 'i']:
+			#print(neighbour)
+			if(self.topol.top.loc[neighbour]['element'] == 'Ti'):
+				if(self.topol.bondgraph['i'].value_counts().loc[neighbour] - 1 <= self.Nmax - 3):
+					print(self.topol.top.loc[neighbour]['element'])
+					print("found undercoordinated")
+					return self.findUnderCoordinated(neighbour).append(neighbour)
 
-		#Create regular expressions to find undercoordinated atoms by their index
-		regexes = []
-		for index in indices:
-			regexes.append(re.compile("ATOM\s*" + str(index) + " "))
+			elif(self.topol.top.loc[neighbour]['element'] == 'O'):
+				if(self.topol.bondgraph['i'].value_counts().loc[neighbour] < 2):
+					pass
+					#Remove this oxygen?
+			else:
+				return []
 
-		#regexes = "(" + ")|(".join(regexes) + ")"
-		print("Number of uncoordinated: " + str(len(indices)))
-		print("Length of file: " + str(len(content)))
-		#while(len(indices > 0)):
-		newContent = []
-
-		i = 0
-		for line in content:
-			if any(regex.match(line) for regex in regexes):
-				i += 1
-
-		print(str(i) + " undercoordinated atoms found.")
-
-		# file = open('test.pdb', 'w')
-		# for line in newContent:
-		# 	file.write("%s\n" % line.rstrip())	#also remove newline characters
-		# file.close()
-		#print("Length after removal:" + str(len(content) - i))
-
-		# indices = self.topol.extract('Ti', environment = {'O': self.Nmax - 3}).index.get_level_values(1)
-		# self.topol = Topologizer.from_coords('test.pdb')
-		# self.topol.topologize()
-		# indices = self.topol.extract('Ti', environment = {'O': self.Nmax - 3}).index.get_level_values(1)
+		#removeFromPDB(atom)
 
 	#Rotates around x-axis
 	def xRotate(self, vector, angle):
@@ -94,7 +80,7 @@ class Wetter:
 		dotProd = np.dot(rotMatrix, vector)
 		return (dotProd)
 
-	def randomRot(self, vector, angle):
+	def random_rotate(self, vector, angle):
 		rotMatrix = np.array([[np.cos(angle)+vector[0]**2*(1-np.cos(angle)), vector[0]*vector[1]*(1 - np.cos(angle))-vector[2]*np.sin(angle), vector[0]*vector[2]*(1-np.cos(angle))+vector[1]*np.sin(angle)],
 					[vector[1]*vector[0]*(1 - np.cos(angle))+vector[2]*np.sin(angle), np.cos(angle)+vector[1]**2*(1-np.cos(angle)), vector[1]*vector[2]*(1-np.cos(angle))-vector[0]*np.sin(angle)],
 					[vector[2]*vector[0]*(1 - np.cos(angle))-vector[1]*np.sin(angle), vector[2]*vector[1]*(1 - np.cos(angle))+vector[0]*np.sin(angle), np.cos(angle)+vector[2]**2*(1-np.cos(angle))]])
@@ -123,7 +109,9 @@ class Wetter:
 			#rotMatrix = -np.array([[-1+2*ortVec[0]**2, 2*ortVec[0]*ortVec[1], 2*ortVec[0]*ortVec[2]],
 			#					[2*ortVec[0]*ortVec[1], -1+2*ortVec[1]**2, 2*ortVec[1]*ortVec[2]],
 			#					[2*ortVec[0]*ortVec[2], 2*ortVec[1]*ortVec[2], -1+2*ortVec[2]**2]])
-			rotMatrix = np.array([[1, 0, 0],[0, -1, 0],[0, 0, -1]])
+			rotMatrix = -I 		#np.array([[1, 0, 0],[0, -1, 0],[0, 0, -1]])
+
+		#Need to take into account when vectors are orthagonal i.e when dot product is 0?
 		else:
 			#skew-symmetric: transpose equals negative. Used to represent cross product as matrix multiplication
 			skewSym	= np.array([[0, -crossProd[2], crossProd[1]],[crossProd[2], 0, -crossProd[0]],[-crossProd[1], crossProd[0], 0]])
@@ -132,7 +120,7 @@ class Wetter:
 
 		return rotMatrix
 
-	def addAtoms(self, coords, vectors):
+	def add_atoms(self, coords, vectors):
 		atoms = np.empty([0, 3], dtype=float)
 		elements = []
 		i=0
@@ -144,10 +132,9 @@ class Wetter:
 			H2 = np.array([-np.sin(self.theta/2), 0, np.cos(self.theta/2)])
 
 			#No need to rotate O since it lies on the x-axis
-			H1 = self.xRotate(H1, 36/360*2*np.pi)
-			H2 = self.xRotate(H2, 36/360*2*np.pi)
-			#H1 = Quaternion(axis=[1, 0, 0],angle=np.pi/5).rotate(H1)
-			#H2 = Quaternion(axis=[1, 0, 0],angle=np.pi/5).rotate(H2)
+			angle = np.arccos(np.cos(115)/np.cos(104.5/2))
+			H1 = self.xRotate(H1, angle)
+			H2 = self.xRotate(H2, angle)
 
 			#Align z axis to the directional vector
 			rotMatrix = self.align([0, 0, 1], vectors[i])
@@ -164,7 +151,7 @@ class Wetter:
 			#Rotate randomly around the directional vector
 			axis = vectors[i]
 			theta = random.uniform(0.1, 2*np.pi)
-			O = Quaternion(axis=axis,angle=theta).rotate(O)
+			#O = Quaternion(axis=axis,angle=theta).rotate(O)
 			H1 = Quaternion(axis=axis,angle=theta).rotate(H1)
 			H2 = Quaternion(axis=axis,angle=theta).rotate(H2)
 
@@ -189,23 +176,17 @@ class Wetter:
 			atoms = np.vstack((atoms, H2))
 			elements.extend('H')
 		#Append atoms to .pdb file
-		pdbAppender.append_atoms(file = self.file, coords = atoms, elements = elements)
+		append_atoms(file = self.file, coords = atoms, elements = elements)
 		#self.appendAtoms(coords = [O, H1, H2], elements=['O', 'H', 'H'])
 
 
 	#Calculate M-O vectors
-	def calculateVectors(self):
+	def calculate_vectors(self):
 		if(self.verbose):
 			print("Ind:")
 			print self.ind
 			print("neighbourgraph:")
 			print self.neighbourgraph
-
-		#Get centers for environment
-		centerIndices = self.topol.extract('Ti', environment = {'O': self.Nmax - 1}).index.get_level_values(1)
-		#Construct neighbourgraph where columns are metal centers and rows their coordination shell
-		#Sort_values unecessary but nice for readability, will remove later....
-		neighbourgraph = self.topol.bondgraph.loc[self.topol.bondgraph['j'].isin(centerIndices)].sort_values(['j'])[['i', 'j']].pivot(columns= 'j').apply(lambda x: pd.Series(x.dropna().values)).apply(np.int64)['i']
 
 		vectors = np.empty([0, 3], dtype=float)
 		#pairVectors = vectors = np.empty([0, 3], dtype=float)
@@ -214,14 +195,16 @@ class Wetter:
 		#pairVec = np.array([0,0,0])
 
 		#Calculate only for user specified fraction
-		randIndices = np.random.randint(len(centerIndices), size=int(self.waterFrac * float(len(centerIndices))))
-		indices = centerIndices[randIndices]
+		randIndices = random.sample(range(0, len(self.centerIndices)), int(self.waterFrac * float(len(self.centerIndices))))
+		indices = self.centerIndices[randIndices]
+		#indices = self.centerIndices
 
 		#Calculate M-O vectors
+		print(indices)
 		for center in tqdm(indices, ascii=True, desc='Calculating directional vectors'):
 			#Only calculate for the fraction that will actually get hydrated (change this later to actually choose that fraction)
 			vec = [0, 0, 0]
-			for neighbour in neighbourgraph[center]:
+			for neighbour in self.neighbourgraph[center]:
 				# for otherNeighbour in self.neighbourgraph[center]:
 				# 	vec_x = self.topol.trj.xyz[0][center][0] - self.topol.trj.xyz[0][neighbour][0]
 				# 	vec_y = self.topol.trj.xyz[0][center][1] - self.topol.trj.xyz[0][neighbour][1]
@@ -262,15 +245,16 @@ class Wetter:
 
 	def wet(self):
 		#get coordinates where oxygen should be placed
-		#self.removeUndercoordinated()
-		vectors, coords = self.calculateVectors()
+		#self.topol = pdbExplorer.removeLowerCoordinated(self.topol, self.file)
+
+		vectors, coords = self.calculate_vectors()
 		i = 0
 
 		#Check for overlap
 		#print whole number and not 1.234 e+4 etc, will remove later....
 		np.set_printoptions(suppress=True)
 
-		self.addAtoms(coords, vectors)
+		self.add_atoms(coords, vectors)
 
 		if(self.verbose):
 			for vector in vectors:
