@@ -5,10 +5,10 @@ atom Ti:
 	hydroxyl: 0.1
 
 molecule water:
-	OH bondlength: 1
-	HOH angle: 104.5
-	MOH angle: 115 
+	OH bond length: 1
+	HOH bond angle: 104.5
+	MOH bond angle: 115 
 
 molecule hydroxyl:
-	OH bondlength: 1
-	MOH angle: 115
+	OH bond length: 1
+	MOH bond angle: 115

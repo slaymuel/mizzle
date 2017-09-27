@@ -286,7 +286,7 @@ def removeLowerCoordinated(file):
 			for line in newContent:
 		 		f.write("%s\n" % line.rstrip())	#also remove newline characters
 
-		print("Length after removal:" + str(len(newContent)))
+		print("Length of file after removal: " + str(len(newContent)))
 
 
 		content = newContent

@@ -1,14 +1,16 @@
 '''
 To-do list: 
-. Remove one coordinated oxygens?
-. Add water molecules (calculate coordinates, angles etc)
+. Tab space 4
+. Remove one coordinated oxygens
 . Put 2 molecules on Nmax-2 coordinated centers
+. Add from_dataframe to radish
+. Check for overlap
 . Restructure (Make the code more effective etc)
 . Boundary conditions, affects distance between atoms
 . Add support different environments
 . Add support for different metals
+. Timer
 . Tkinter GUI?
-. remove low (N < Nmax-1) coordinated atoms
 
 Notes:
 Add water to water+hydroxyl fraction then remove one hydrogen from totalAdded - water fraction
@@ -28,7 +30,7 @@ from tqdm import tqdm
 
 class Wetter:
 
-	def __init__(self, file, verbose, theta = 104.5, waterFrac=0.5, hydroxylFrac = 0.1, MOBondlength = 2, MEnvironment = 5, HOHBondlength = 1, OHBondlength = 1):
+	def __init__(self, file, verbose, theta = 104.5, waterFrac=0.5, hydroxylFrac = 0.1, MOBondlength = 2, MEnvironment = 5, HOHBondlength = 1, OHBondlength = 1, centers = ['Ti']):
 		#Input parameters
 		self.theta = theta
 		self.waterFrac = waterFrac
@@ -39,17 +41,12 @@ class Wetter:
 		self.HOHBondlength = HOHBondlength
 		self.OHBondlength = OHBondlength
 		self.theta = theta/360*2*np.pi
-
+		self.centers = centers
 		#Prepare input file for processing
 		self.topol = Topologizer.from_coords(file)
 		self.topol.topologize()
 		#Set Nmax
 		self.Nmax = self.topol.bondgraph['i'].value_counts().max()
-		#Get centers for environment
-		self.centerIndices = self.topol.extract('Ti', environment = {'O': self.Nmax - 1}).index.get_level_values(1)
-		#Construct neighbourgraph where columns are metal centers and rows their coordination shell
-		#Sort_values unecessary but nice for readability, will remove later....
-		self.neighbourgraph = self.topol.bondgraph.loc[self.topol.bondgraph['j'].isin(self.centerIndices)].sort_values(['j'])[['i', 'j']].pivot(columns= 'j').apply(lambda x: pd.Series(x.dropna().values)).apply(np.int64)['i']
 
 		#Format float precision(will remove from here later maybe....)
 		self.float_format = lambda x: "%.3f" % x
@@ -96,7 +93,6 @@ class Wetter:
 
 		#Edge cases: If vectors are parallell since dot product of normalized vectors is the cosine of the angle.
 		if(dotProd < 1.01 and dotProd > 0.99):
-			#print("dotprod is 1")
 			rotMatrix = I
 
 		elif(dotProd < -0.99 and dotProd > -1.01):
@@ -125,7 +121,7 @@ class Wetter:
 		elements = []
 		i=0
 
-		#Loop over all coordinates where oxygen can be placed
+		#Loop over all coordinates where oxygen is to be placed
 		while i < len(coords):
 			O = np.array([0, 0, 0])
 			H1 = np.array([np.sin(self.theta/2), 0, np.cos(self.theta/2)])
@@ -148,7 +144,6 @@ class Wetter:
 			#randRotMatrix = self.randomRot(vectors[i], random.uniform(0.1, 2*np.pi))
 			#randRotMatrix = self.randomRot(vectors[i], 1.2)
 
-			#Rotate randomly around the directional vector
 			axis = vectors[i]
 			theta = random.uniform(0.1, 2*np.pi)
 			#O = Quaternion(axis=axis,angle=theta).rotate(O)
@@ -165,7 +160,6 @@ class Wetter:
 			H1 = np.array([H1[0] + transVector[0], H1[1] + transVector[1], H1[2] + transVector[2]])
 			H2 = np.array([H2[0] + transVector[0], H2[1] + transVector[1], H2[2] + transVector[2]])
 
-
 			i += 1
 
 			#Save atoms to be added to pdb file
@@ -179,6 +173,61 @@ class Wetter:
 		append_atoms(file = self.file, coords = atoms, elements = elements)
 		#self.appendAtoms(coords = [O, H1, H2], elements=['O', 'H', 'H'])
 
+	#Construct neighbourgraph where columns are metal centers and rows their coordination shell
+	#Sort_values unecessary but nice for readability, will remove later....
+	def get_center_neighbours(self, coordination):
+		centerIndices = self.topol.extract(self.centers[0], environment = {'O': self.Nmax - coordination}).index.get_level_values(1)
+		neighbourgraph = self.topol.bondgraph.loc[self.topol.bondgraph['j'].isin(centerIndices)].sort_values(['j'])[['i', 'j']].pivot(columns= 'j').apply(lambda x: pd.Series(x.dropna().values)).apply(np.int64)['i']
+
+		return (centerIndices, neighbourgraph)
+
+	def calculate_pair_vectors(self):
+		centerIndices, neighbourgraph = self.get_center_neighbours(2)
+		print("Number of centers: " + str(len(centerIndices)))
+		vectors = np.empty([0, 3], dtype=float)
+		tempVectors = np.empty([0, 3], dtype=float)
+		pairVectors = np.empty([0, 3], dtype=float)
+		tempVector = np.empty([3], dtype=float)
+
+		for center in centerIndices:
+			for neighbour in neighbourgraph[center]:
+				vec_x = self.topol.trj.xyz[0][center][0] - self.topol.trj.xyz[0][neighbour][0]
+				vec_y = self.topol.trj.xyz[0][center][1] - self.topol.trj.xyz[0][neighbour][1]
+				vec_z = self.topol.trj.xyz[0][center][2] - self.topol.trj.xyz[0][neighbour][2]
+				mag = np.sqrt(vec_x**2 + vec_x**2 + vec_x**2)
+				tempVectors = np.vstack((tempVectors, [vec_x/mag, vec_y/mag, vec_z/mag]))
+
+			#Calculate pair vectors	
+			i = 0
+			while i < len(tempVectors):
+				j = i + 1
+				while j < len(tempVectors):
+					iVector = [tempVectors[i][0], tempVectors[i][1], tempVectors[i][2]]
+					jVector = [tempVectors[j][0], tempVectors[j][1], tempVectors[j][2]]
+
+					iNorm = np.sqrt(tempVectors[i][0]**2 + tempVectors[i][1]**2 + tempVectors[i][2]**2)
+					jNorm = np.sqrt(tempVectors[j][0]**2 + tempVectors[j][1]**2 + tempVectors[j][2]**2)
+
+					iVector = iVector/iNorm
+					jVector = jVector/jNorm
+
+					tempVector = [iVector + jVector]
+
+					pairVectors = np.vstack((pairVectors, tempVector))
+					j += 1
+				i += 1
+
+			#Sort vectors with increasing norm
+			pairVectors = sorted(pairVectors, key=lambda x: np.sqrt(x[0]**2 + x[1]**2 + x[2]**2))
+
+			#Save relevant vectors
+			vectors = np.vstack((vectors, pairVectors[3]))
+			vectors = np.vstack((vectors, pairVectors[4]))
+
+			tempVectors = np.empty([0, 3], dtype=float)
+			pairVectors = pairVectors = np.empty([0, 3], dtype=float)
+		print("Vectors")
+		print(vectors)
 
 	#Calculate M-O vectors
 	def calculate_vectors(self):
@@ -188,27 +237,22 @@ class Wetter:
 			print("neighbourgraph:")
 			print self.neighbourgraph
 
+		centerIndices, neighbourgraph = self.get_center_neighbours(1)
+		
 		vectors = np.empty([0, 3], dtype=float)
-		#pairVectors = vectors = np.empty([0, 3], dtype=float)
 		coords = np.empty([0, 3], dtype=float)
 		vec = np.array([0,0,0])
-		#pairVec = np.array([0,0,0])
 
 		#Calculate only for user specified fraction
-		randIndices = random.sample(range(0, len(self.centerIndices)), int(self.waterFrac * float(len(self.centerIndices))))
-		indices = self.centerIndices[randIndices]
-		#indices = self.centerIndices
+		randIndices = random.sample(range(0, len(centerIndices)), int(self.waterFrac * float(len(centerIndices))))
+		indices = centerIndices[randIndices]
 
 		#Calculate M-O vectors
-		print(indices)
 		for center in tqdm(indices, ascii=True, desc='Calculating directional vectors'):
 			#Only calculate for the fraction that will actually get hydrated (change this later to actually choose that fraction)
 			vec = [0, 0, 0]
-			for neighbour in self.neighbourgraph[center]:
-				# for otherNeighbour in self.neighbourgraph[center]:
-				# 	vec_x = self.topol.trj.xyz[0][center][0] - self.topol.trj.xyz[0][neighbour][0]
-				# 	vec_y = self.topol.trj.xyz[0][center][1] - self.topol.trj.xyz[0][neighbour][1]
-				# 	vec_z = self.topol.trj.xyz[0][center][2] - self.topol.trj.xyz[0][neighbour][2]
+			for neighbour in neighbourgraph[center]:
+
 				#M-O Vector components
 				vec_x = self.topol.trj.xyz[0][center][0] - self.topol.trj.xyz[0][neighbour][0]
 				vec_y = self.topol.trj.xyz[0][center][1] - self.topol.trj.xyz[0][neighbour][1]
@@ -229,7 +273,7 @@ class Wetter:
 			vec = [vec[0]/mag, vec[1]/mag, vec[2]/mag]
 			vectors = np.vstack((vectors, vec))
 
-			#Set vector length
+			#Set vector length to get coordinate
 			vec = [vec[0]*self.MOBondlength, vec[1]*self.MOBondlength, vec[2]*self.MOBondlength]
 
 			#Coordinates where oxygen should be placed: vec + coordinate of metal atom multiplied with bondlength
@@ -246,11 +290,12 @@ class Wetter:
 	def wet(self):
 		#get coordinates where oxygen should be placed
 		#self.topol = pdbExplorer.removeLowerCoordinated(self.topol, self.file)
-
+		self.calculate_pair_vectors()
 		vectors, coords = self.calculate_vectors()
 		i = 0
 
 		#Check for overlap
+
 		#print whole number and not 1.234 e+4 etc, will remove later....
 		np.set_printoptions(suppress=True)
 

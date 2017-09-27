@@ -5,6 +5,7 @@ from Wetter import Wetter
 import sys
 import argcomplete
 import argparse
+from WetParser import parse
 from pdbExplorer import removeLowerCoordinated
 
 class CustomFormatter(argparse.ArgumentDefaultsHelpFormatter,
@@ -35,10 +36,15 @@ def main(argv=None):
 	print "The file list is:"
 	print "\"" + " ".join(args.files) + "\""   
 
-	file = removeLowerCoordinated(args.files[1])
-	wetter = Wetter(file, args.verbose)
+	parse('config.wet')
+	#Remove reactive atoms with low coordination ( > Nmax - 2) and save in temporary fila
+	#file = removeLowerCoordinated(args.files[1])
 
-	wetter.wet()
+	#Instantiate the wetter module
+	#wetter = Wetter(file, args.verbose)
+
+	#Run algorithm
+	#wetter.wet()
 
 if __name__ == "__main__":
     sys.exit(main())
