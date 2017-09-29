@@ -36,15 +36,15 @@ def main(argv=None):
 	print "The file list is:"
 	print "\"" + " ".join(args.files) + "\""   
 
-	parse('config.wet')
+	#parse('config.wet')
 	#Remove reactive atoms with low coordination ( > Nmax - 2) and save in temporary fila
-	#file = removeLowerCoordinated(args.files[1])
+	file = removeLowerCoordinated(args.files[1])
 
 	#Instantiate the wetter module
-	#wetter = Wetter(file, args.verbose)
+	wetter = Wetter(file, args.verbose)
 
 	#Run algorithm
-	#wetter.wet()
+	wetter.wet()
 
 if __name__ == "__main__":
     sys.exit(main())

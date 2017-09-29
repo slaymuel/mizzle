@@ -22,6 +22,7 @@
 ##################################################################################################
 from radish import Topologizer
 import re
+import numpy as np
 
 def append_atoms(file, coords=[[0,0,0],[1,1,1]], elements = []):
 	atomList = []
@@ -238,10 +239,28 @@ def removeLowerCoordinated(file):
 	f.close()
 	print("Length of file: " + str(len(content)))
 
+	#Remove low coordinated center atoms
 	while(1):
+		indices = []
+
 		try:
-			indices = topol.extract('Ti', environment = {'O': Nmax - 3}).index.get_level_values(1)
+			i = 3
+			while(i <= Nmax):
+				centerIndices = topol.extract('Ti', environment = {'O': Nmax - i}).index.get_level_values(1)
+				indices.extend(centerIndices)
+				i += 1
 		except IndexError:
+			#print("All low coordinated Ti removed")
+			pass
+
+		try:
+			oxygenIndices = topol.extract('O', environment = {'Ti': 1}).index.get_level_values(1)
+			indices.extend(oxygenIndices)
+		except IndexError:
+			print("All low coordinated oxygen removed")
+			pass
+
+		if(len(indices) < 1):
 			return file
 
 		#Create regular expressions to find undercoordinated atoms by their index
