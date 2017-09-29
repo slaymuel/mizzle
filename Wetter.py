@@ -2,6 +2,7 @@
 To-do list: 
 . Tab space 4
 . Fix AtomCreator
+. Fix 
 . Add from_dataframe to radish
 . Check for overlap
 . Restructure (Make the code more effective etc)
@@ -353,7 +354,7 @@ class Wetter:
 
 	def wet(self):
 		#get coordinates where oxygen should be placed
-		#self.topol = pdbExplorer.removeLowerCoordinated(self.topol, self.file)
+		#self.topol = pdbExplorer.remove_lower_loordinated(self.topol, self.file)
 		#pairVectors, pairCoords = self.calculate_pair_vectors()
 		#vectors, coords = self.calculate_vectors()
 

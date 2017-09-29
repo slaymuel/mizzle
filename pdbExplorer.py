@@ -228,7 +228,7 @@ def write_file(file, coords=[[0,0,0],[1,1,1]], elements = []):
 
 
 #Remove underccordinated atoms
-def removeLowerCoordinated(file):
+def remove_lower_coordinated(file):
 	topol = Topologizer.from_coords(file)
 	topol.topologize()
 	Nmax = topol.bondgraph['i'].value_counts().max()

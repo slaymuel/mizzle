@@ -6,7 +6,7 @@ import sys
 import argcomplete
 import argparse
 from WetParser import parse
-from pdbExplorer import removeLowerCoordinated
+from pdbExplorer import remove_lower_coordinated
 
 class CustomFormatter(argparse.ArgumentDefaultsHelpFormatter,
                       argparse.RawDescriptionHelpFormatter):
@@ -38,7 +38,7 @@ def main(argv=None):
 
 	#parse('config.wet')
 	#Remove reactive atoms with low coordination ( > Nmax - 2) and save in temporary fila
-	file = removeLowerCoordinated(args.files[1])
+	file = remove_lower_coordinated(args.files[1])
 
 	#Instantiate the wetter module
 	wetter = Wetter(file, args.verbose)
