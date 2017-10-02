@@ -1,4 +1,11 @@
 '''
+Questions:
+What is TER at the end of pdb file, only for proteins/aminoacid chains?
+Ideas for 4-coordinated centers
+'''
+
+
+'''
 To-do list: 
 . Add from_dataframe to radish
 . Check for overlap
@@ -34,7 +41,7 @@ import sys
 
 class Wetter:
 
-    def __init__(self, file, verbose, theta = 104.5, waterFrac=0.5, hydroxylFrac = 0.5, MOBondlength = 2.2, MEnvironment = 5, HOHBondlength = 1, OHBondlength = 1, centers = ['Ti']):
+    def __init__(self, file, verbose, theta = 104.5, waterFrac=1, hydroxylFrac = 0, MOBondlength = 2.2, MEnvironment = 5, HOHBondlength = 1, OHBondlength = 1, centers = ['Ti']):
         #Input parameters
         self.theta = theta
         self.waterFrac = waterFrac
@@ -52,7 +59,7 @@ class Wetter:
         #Use radish (RAD-algorithm) to compute the coordination of each atom
         self.topol = Topologizer.from_coords(file)
         self.topol.topologize()
-        #Set Nmax which is the maximum coordination (çoordination in bulk)
+        #Set Nmax which is the maximum coordination (coordination in bulk)
         self.Nmax = self.topol.bondgraph['i'].value_counts().max()
 
         #Format float precision(will remove from here later maybe....)
@@ -74,6 +81,8 @@ class Wetter:
     #For Nmax - 2 coordinated centers calculate pair-vectors
     def calculate_pair_vectors(self):
         centerIndices, neighbourgraph = self.get_center_neighbours(2)
+
+        print("Found " + str(len(centerIndices)) + " centers with Nmax - 2 coordination")
 
         vectors = np.empty([0, 3], dtype=float)
         tempVectors = np.empty([0, 3], dtype=float)
@@ -145,6 +154,7 @@ class Wetter:
 
         #Get indices for metal centers with coordination Nmax - 1
         centerIndices, neighbourgraph = self.get_center_neighbours(1)
+        print("Found " + str(len(centerIndices)) + " centers with Nmax - 1 coordination")
 
         #Calculate only for user specified fraction
         randIndices = random.sample(range(0, len(centerIndices)), int((self.waterFrac + self.hydroxylFrac) * float(len(centerIndices))))
@@ -194,11 +204,11 @@ class Wetter:
         #get coordinates where oxygen should be placed
 
         vectors, coords = self.calculate_vectors()
-
+        pairVectors, pairCoords = self.calculate_pair_vectors()
         #vectors, coords = self.calculate_pair_vectors()
         
-        #vectors = np.concatenate((vectors, pairVectors), axis=0)
-        #coords = np.concatenate((coords, pairCoords), axis=0)
+        vectors = np.concatenate((vectors, pairVectors), axis=0)
+        coords = np.concatenate((coords, pairCoords), axis=0)
         #Check for overlap
 
         #print whole number and not 1.234 e+4 etc, will remove later....
@@ -209,9 +219,8 @@ class Wetter:
         #Add hydroxide to user specified fraction
         hydCoords = coords[randIndices]
         hydVectors = vectors[randIndices]
-        #hydCoords, hydElements = self.add_hydroxyl(hydCoords, hydVectors)
         hydCoords, hydElements = AtomCreator.add_hydroxyl(hydCoords, hydVectors, self.theta)
-        print("Adding: " + str(len(hydCoords)) + " atoms (hydroxyl)")
+        print("Adding: " + str(len(hydCoords)) + " atoms ("+ str(len(hydCoords)/3) +" hydroxyl molecules)")
 
         #Create mask for the selection of water molecules
         mask = np.ones(len(coords), np.bool)
@@ -220,9 +229,8 @@ class Wetter:
         #Create water molecules at the inverse selection of where hydroxide was placed
         watCoords = coords[mask]
         watVectors = vectors[mask]
-        #watCoords, watElements = self.add_water(watCoords, watVectors)
         watCoords, watElements = AtomCreator.add_water(watCoords, watVectors, self.theta)
-        print("Adding: " + str(len(watCoords)) + " atoms (water)")
+        print("Adding: " + str(len(watCoords)) + " atoms ("+ str(len(watCoords)/3) +" water molecules)")
 
         #Concatenate water and hydroxide coordinates
         atoms = np.concatenate((watCoords, hydCoords))

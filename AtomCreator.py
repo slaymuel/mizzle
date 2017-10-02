@@ -56,7 +56,7 @@ def add_hydroxyl(coords, vectors, theta):
         H = np.array([np.sin(theta/2), 0, np.cos(theta/2)])
 
         #No need to rotate O since it lies on the x-axis
-        angle = np.arccos(np.cos(np.radians(115))/np.cos(np.radians(104.5/2)))
+        angle = np.arccos(np.cos(115)/np.cos(104.5/2))
         H = xRotate(H, angle)
 
         #Align z axis to the directional vector

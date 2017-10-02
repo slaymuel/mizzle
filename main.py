@@ -39,7 +39,7 @@ def main(argv=None):
 	#parse('config.wet')
 	#Remove reactive atoms with low coordination ( > Nmax - 2) and save in temporary fila
 	file = remove_lower_coordinated(args.files[1])
-	print(file)
+	
 	#Instantiate the wetter module
 	wetter = Wetter(file, args.verbose)
 
