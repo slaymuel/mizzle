@@ -1,14 +1,20 @@
 # Usage
 atom Ti:
-	coordination: 5
-	water: 0.5
-	hydroxyl: 0.1
+    coordination: 5
+    water: 0.5
+    hydroxyl: 0.1
+
+atom Ti:
+    coordination: 4
+    water: 0.2
+    hydroxyl: 0.3
 
 molecule water:
-	OH bond length: 1
-	HOH bond angle: 104.5
-	MOH bond angle: 115 
+    OH bond length: 1
+    HOH bond angle: 104.5
+    MOH bond angle: 115 
 
 molecule hydroxyl:
-	OH bond length: 1
-	MOH bond angle: 115
+    OH bond length: 1
+    MOH bond angle: 115
+end

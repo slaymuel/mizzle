@@ -1,5 +1,5 @@
 ### Description:
-Hydrates metal oxides
+Hydrates metal oxides with water, hydroxide and oxygen. 
 
 ### Installation instructions:
 
