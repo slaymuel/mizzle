@@ -7,6 +7,8 @@ Ideas for 4-coordinated centers
 
 '''
 To-do list: 
+. Add library of max coordinations
+. Make it work on nanocluster
 . Add from_dataframe to radish
 . Check for overlap
 . 4-coordinated splits 1 and adsorbs one
@@ -41,7 +43,7 @@ import sys
 
 class Wetter:
 
-    def __init__(self, file, verbose, theta = 104.5, waterFrac=1, hydroxylFrac = 0, MOBondlength = 2.2, MEnvironment = 5, HOHBondlength = 1, OHBondlength = 1, centers = ['Ti']):
+    def __init__(self, file, verbose, theta = 104.5, waterFrac=1, hydroxylFrac = 0, MOBondlength = 2.2, MEnvironment = 5, HOHBondlength = 1, OHBondlength = 1, centers = ['Ti'], Nmax = 6):
         #Input parameters
         self.theta = theta
         self.waterFrac = waterFrac
@@ -53,18 +55,16 @@ class Wetter:
         self.OHBondlength = OHBondlength
         self.theta = theta/360*2*np.pi
         self.centers = centers
-
+        self.Nmax = Nmax
         #Prepare input file for processing
 
         #Use radish (RAD-algorithm) to compute the coordination of each atom
         self.topol = Topologizer.from_coords(file)
         self.topol.topologize()
         #Set Nmax which is the maximum coordination (coordination in bulk)
-        self.Nmax = self.topol.bondgraph['i'].value_counts().max()
-
+        #self.Nmax = self.topol.bondgraph['i'].value_counts().max()
         #Format float precision(will remove from here later maybe....)
         self.float_format = lambda x: "%.3f" % x
-
 
     #Construct neighbourgraph where columns are metal centers and rows their coordination shell
     #Sort_values unecessary but nice for readability, will remove later....
@@ -76,74 +76,76 @@ class Wetter:
 
         except IndexError:
             return [], []
-
+    def overlap(self, point, points):
+        i = 0
+        for atom in points:
+            distance = np.linalg.norm(point - atom)
+            if(distance < 2):
+                i += 1
+        if(i > 0):
+            print("Atom overlaps with " + str(i) + " other atoms.")
 
     #For Nmax - 2 coordinated centers calculate pair-vectors
     def calculate_pair_vectors(self):
         centerIndices, neighbourgraph = self.get_center_neighbours(2)
 
-        print("Found " + str(len(centerIndices)) + " centers with Nmax - 2 coordination")
+        if(len(centerIndices) > 0):
+            print("Found " + str(len(centerIndices)) + " centers with Nmax - 2 coordination")
 
-        vectors = np.empty([0, 3], dtype=float)
-        tempVectors = np.empty([0, 3], dtype=float)
-        pairVectors = np.empty([0, 3], dtype=float)
-        tempVector = np.empty([3], dtype=float)
-        coordinates = np.empty([0, 3], dtype=float)
-        coord = np.empty([3], dtype=float)
+            vectors = np.empty([0, 3], dtype=float)
+            coordinates = np.empty([0, 3], dtype=float)
 
-        randIndices = random.sample(range(0, len(centerIndices)), int((self.waterFrac + self.hydroxylFrac) * float(len(centerIndices))))
-        indices = centerIndices[randIndices]
+            randIndices = random.sample(range(0, len(centerIndices)), int((self.waterFrac + self.hydroxylFrac) * float(len(centerIndices))))
+            indices = centerIndices[randIndices]
 
-        for center in indices:
+            for center in indices:
 
-            sumVec = np.array([0, 0, 0], dtype=float)
+                tempVectors = np.empty([0, 3], dtype=float)
+                pairVectors = np.empty([0, 3], dtype=float)
+                sumVec = np.array([0, 0, 0], dtype=float)
 
-            for neighbour in neighbourgraph[center]:
-                vec_x = self.topol.trj.xyz[0][center][0] - self.topol.trj.xyz[0][neighbour][0]
-                vec_y = self.topol.trj.xyz[0][center][1] - self.topol.trj.xyz[0][neighbour][1]
-                vec_z = self.topol.trj.xyz[0][center][2] - self.topol.trj.xyz[0][neighbour][2]
+                for neighbour in neighbourgraph[center]:
+                    tempVec = self.topol.trj.xyz[0][center] - self.topol.trj.xyz[0][neighbour]
+                    tempVec = tempVec/np.linalg.norm(tempVec)
 
-                mag = np.sqrt(vec_x**2 + vec_y**2 + vec_z**2)
-                tempVectors = np.vstack((tempVectors, [vec_x/mag, vec_y/mag, vec_z/mag]))
-                sumVec += [vec_x/mag, vec_y/mag, vec_z/mag]
+                    tempVectors = np.vstack((tempVectors, tempVec))
+                    sumVec += tempVec
 
-            #Normalize the sum of vectors
-            norm = np.sqrt(sumVec[0]**2 + sumVec[1]**2 + sumVec[2]**2)
-            sumVec = sumVec/norm
+                #Normalize the sum of vectors
+                sumVec = sumVec/np.linalg.norm(sumVec)
 
-            for vector in tempVectors:
-                
-                tempVector = sumVec - vector
-                pairVectors = np.vstack((pairVectors, tempVector))
+                for vector in tempVectors:
+                    
+                    tempVector = sumVec - vector
+                    pairVectors = np.vstack((pairVectors, tempVector))
 
-            #Sort vectors with increasing norm
-            pairVectors = sorted(pairVectors, key=lambda x: np.sqrt(x[0]**2 + x[1]**2 + x[2]**2))
+                #Sort vectors with increasing norm
+                pairVectors = sorted(pairVectors, key=lambda x: np.sqrt(x[0]**2 + x[1]**2 + x[2]**2))
 
-            #Normalize the two vectors with largest norm that are to be saved
-            norm = np.sqrt(pairVectors[2][0]**2+pairVectors[2][1]**2+pairVectors[2][2]**2)
-            pairVectors[2] = pairVectors[2]/norm
-            norm = np.sqrt(pairVectors[3][0]**2+pairVectors[3][1]**2+pairVectors[3][2]**2)
-            pairVectors[3] = pairVectors[3]/norm
+                pairVectors[0] = pairVectors[0]/np.linalg.norm(pairVectors[0])
+                pairVectors[1] = pairVectors[1]/np.linalg.norm(pairVectors[1])
 
-            #Save relevant vectors
-            vectors = np.vstack((vectors, pairVectors[2]))
-            vectors = np.vstack((vectors, pairVectors[3]))
+                #Save relevant vectors
+                vectors = np.vstack((vectors, pairVectors[0]))
+                vectors = np.vstack((vectors, pairVectors[1]))
 
-            #Calculate and save coordinates of where oxygen should be placed
-            coord = [self.topol.trj.xyz[0][center][0]*10 + pairVectors[2][0]*self.MOBondlength, 
-                    self.topol.trj.xyz[0][center][1]*10 + pairVectors[2][1]*self.MOBondlength,
-                    self.topol.trj.xyz[0][center][2]*10 + pairVectors[2][2]*self.MOBondlength]
-            coordinates = np.vstack((coordinates, coord))
+                #Calculate and save coordinates of where oxygen should be placed
+                coord = self.topol.trj.xyz[0][center]*10 + pairVectors[0]*self.MOBondlength
 
-            coord = [self.topol.trj.xyz[0][center][0]*10 + pairVectors[3][0]*self.MOBondlength, 
-                    self.topol.trj.xyz[0][center][1]*10 + pairVectors[3][1]*self.MOBondlength,
-                    self.topol.trj.xyz[0][center][2]*10 + pairVectors[3][2]*self.MOBondlength]
-            coordinates = np.vstack((coordinates, coord))
+                self.overlap(coord, np.vstack((vectors, self.topol.trj.xyz[0]*10)))
 
-            tempVectors = np.empty([0, 3], dtype=float)
-            pairVectors = pairVectors = np.empty([0, 3], dtype=float)
+                coordinates = np.vstack((coordinates, coord))
 
-        return vectors, coordinates
+                coord = self.topol.trj.xyz[0][center]*10 + pairVectors[1]*self.MOBondlength
+
+                self.overlap(coord, np.vstack((vectors, self.topol.trj.xyz[0]*10)))
+
+                coordinates = np.vstack((coordinates, coord))
+
+            return vectors, coordinates
+
+        else:
+            return np.empty([0, 3], dtype=float), np.empty([0, 3], dtype=float)
 
     #Calculate M-O vectors which determine the positions of hydration molecules
     def calculate_vectors(self):
@@ -154,61 +156,60 @@ class Wetter:
 
         #Get indices for metal centers with coordination Nmax - 1
         centerIndices, neighbourgraph = self.get_center_neighbours(1)
-        print("Found " + str(len(centerIndices)) + " centers with Nmax - 1 coordination")
 
-        #Calculate only for user specified fraction
-        randIndices = random.sample(range(0, len(centerIndices)), int((self.waterFrac + self.hydroxylFrac) * float(len(centerIndices))))
-        indices = centerIndices[randIndices]
+        if(len(centerIndices) > 0):
+            print("Found " + str(len(centerIndices)) + " centers with Nmax - 1 coordination")
 
-        #Calculate M-O vectors
-        for center in tqdm(indices, ascii=True, desc='Calculating directional vectors'):
-            vec = [0, 0, 0]
-            for neighbour in neighbourgraph[center]:
+            #Calculate only for user specified fraction
+            randIndices = random.sample(range(0, len(centerIndices)), int((self.waterFrac + self.hydroxylFrac) * float(len(centerIndices))))
+            indices = centerIndices[randIndices]
 
-                #M-O Vector components
-                vec_x = self.topol.trj.xyz[0][center][0] - self.topol.trj.xyz[0][neighbour][0]
-                vec_y = self.topol.trj.xyz[0][center][1] - self.topol.trj.xyz[0][neighbour][1]
-                vec_z = self.topol.trj.xyz[0][center][2] - self.topol.trj.xyz[0][neighbour][2]
+            #Calculate M-O vectors
+            for center in tqdm(indices, ascii=True, desc='Calculating directional vectors'):
+                vec = [0, 0, 0]
+                for neighbour in neighbourgraph[center]:
 
-                #M-O vector
-                tempVec = np.array([vec_x, vec_y, vec_z])
+                    #M-O vector
+                    tempVec = self.topol.trj.xyz[0][center] - self.topol.trj.xyz[0][neighbour]
 
-                #normalize
-                mag = np.sqrt(tempVec[0]**2 + tempVec[1]**2 + tempVec[2]**2)
-                tempVec = tempVec/mag
+                    #normalize
+                    tempVec = tempVec/np.linalg.norm(tempVec)
 
-                #Sum vectors
-                vec = [vec[0] + tempVec[0], vec[1] + tempVec[1], vec[2] + tempVec[2]]
+                    #Sum vectors
+                    #vec = [vec[0] + tempVec[0], vec[1] + tempVec[1], vec[2] + tempVec[2]]
+                    vec = vec + tempVec
 
-            #normalize
-            mag = np.sqrt(vec[0]**2 + vec[1]**2 + vec[2]**2)
-            vec = [vec[0]/mag, vec[1]/mag, vec[2]/mag]
-            vectors = np.vstack((vectors, vec))
 
-            #Set vector length to get coordinate
-            vec = [vec[0]*self.MOBondlength, vec[1]*self.MOBondlength, vec[2]*self.MOBondlength]
+                if(np.linalg.norm(vec) < 0.1):
+                    print("\n\nWarning directional vector almost 0, will not hydrate at atom with index: " + str(center + 1) + "\n")
 
-            #Coordinates where oxygen should be placed: vec + coordinate of metal atom multiplied with bondlength
-            coord = np.array([self.topol.trj.xyz[0][center][0]*10 + vec[0],
-                                self.topol.trj.xyz[0][center][1]*10 + vec[1],
-                                self.topol.trj.xyz[0][center][2]*10 + vec[2]])
+                else:
+                    vec = vec/np.linalg.norm(vec)
+                    vectors = np.vstack((vectors, vec))
 
-            #Save coords and correct units
-            coords = np.vstack((coords, coord))
+                    #Set vector length to get coordinate
+                    vec = vec*self.MOBondlength
 
-        return vectors, coords
+                    #Coordinates where oxygen should be placed: vec + coordinate of metal atom multiplied with bondlength
+                    coord = self.topol.trj.xyz[0][center]*10 + vec
 
+                    #Save coords and correct units
+                    coords = np.vstack((coords, coord))
+
+            return vectors, coords
+        else:
+            return np.empty([0, 3], dtype=float), np.empty([0, 3], dtype=float)
 
     def wet(self):
         #A sum of all vectors pointing from each neighbour of each center to the center itself
         #get coordinates where oxygen should be placed
 
-        vectors, coords = self.calculate_vectors()
-        pairVectors, pairCoords = self.calculate_pair_vectors()
-        #vectors, coords = self.calculate_pair_vectors()
+        #vectors, coords = self.calculate_vectors()
+        #pairVectors, pairCoords = self.calculate_pair_vectors()
+        vectors, coords = self.calculate_pair_vectors()
         
-        vectors = np.concatenate((vectors, pairVectors), axis=0)
-        coords = np.concatenate((coords, pairCoords), axis=0)
+        #vectors = np.concatenate((vectors, pairVectors), axis=0)
+        #coords = np.concatenate((coords, pairCoords), axis=0)
         #Check for overlap
 
         #print whole number and not 1.234 e+4 etc, will remove later....

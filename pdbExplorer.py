@@ -25,6 +25,7 @@
 from radish import Topologizer
 import re
 import numpy as np
+from shutil import copyfile
 
 #Appends atoms to pdb file
 def append_atoms(file, coords=[], elements = []):
@@ -232,13 +233,16 @@ def write_file(file, coords=[[0,0,0],[1,1,1]], elements = []):
 
 
 #Remove atoms with coordination less than Nmax - 3 from pdb file
-def remove_lower_coordinated(file):
+def remove_lower_coordinated(file, Nmax):
     fileWet = file.rsplit('.', 1)[0]
     fileWet = fileWet + "_wet.pdb"
 
+    copyfile(file, fileWet)
+    file = fileWet
+
     topol = Topologizer.from_coords(file)
     topol.topologize()
-    Nmax = topol.bondgraph['i'].value_counts().max()
+    #Nmax = topol.bondgraph['i'].value_counts().max()
 
     content = []
     f = open(file, 'r')
@@ -261,8 +265,11 @@ def remove_lower_coordinated(file):
             pass
 
         try:
-            oxygenIndices = topol.extract('O', environment = {'Ti': 1}).index.get_level_values(1)
-            indices.extend(oxygenIndices)
+#######################################     FIX     ################################################################
+            pass
+            #oxygenIndices = topol.extract('O', environment = {'Ti': 1}).index.get_level_values(1)
+            #indices.extend(oxygenIndices)
+####################################################################################################################
         except IndexError:
             print("All low coordinated oxygen removed")
             pass
@@ -306,7 +313,7 @@ def remove_lower_coordinated(file):
         if(i != len(indices)):
             print("Error!")
 
-        file = fileWet
+        #file = fileWet
         #file = 'test.pdb'
 
         with open(file, 'w') as f:

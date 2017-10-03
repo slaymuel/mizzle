@@ -105,14 +105,14 @@ def add_water(coords, vectors, theta):
         H1 = np.array([np.sin(theta/2), 0, np.cos(theta/2)])
         H2 = np.array([-np.sin(theta/2), 0, np.cos(theta/2)])
 
-        #No need to rotate O since it lies on the x-axis
+        #No need to rotate O since it lies on the x and z axis
         angle = np.arccos(np.cos(115)/np.cos(104.5/2))
         H1 = xRotate(H1, angle)
         H2 = xRotate(H2, angle)
 
         #Align z axis to the directional vector
         rotMatrix = align([0, 0, 1], vectors[i])
-        O = np.dot(rotMatrix, O)
+        #O = np.dot(rotMatrix, O)
         H1 = np.dot(rotMatrix, H1)
         H2 = np.dot(rotMatrix, H2)
 
@@ -159,7 +159,7 @@ def add_water(coords, vectors, theta):
                 numOfOverlaps += 1
             j += 1
         i += 1
-    numOfOverlaps = numOfOverlaps-3*len(atoms)/3
+    numOfOverlaps = numOfOverlaps - len(atoms)
     print(str(numOfOverlaps) + " overlapping atoms")
 
     return atoms, elements
