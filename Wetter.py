@@ -84,6 +84,9 @@ class Wetter:
                 i += 1
         if(i > 0):
             print("Atom overlaps with " + str(i) + " other atoms.")
+            return True
+        else:
+            return False
 
     #For Nmax - 2 coordinated centers calculate pair-vectors
     def calculate_pair_vectors(self):
@@ -129,9 +132,29 @@ class Wetter:
                 if(len(tempVectors) == 2):
                     axis = sumVec
                     angle = np.pi/2
-                    #O = Quaternion(axis=axis,angle=theta).rotate(O)
                     pairVectors[0] = Quaternion(axis = axis,angle = angle).rotate(pairVectors[0])
                     pairVectors[1] = Quaternion(axis = axis,angle = angle).rotate(pairVectors[1])
+
+
+                crossProd = np.cross(pairVectors[0], pairVectors[1])
+                dotProdVec1 = np.dot(sumVec, pairVectors[0])
+                dotProdVec2 = np.dot(sumVec, pairVectors[1])
+                if(dotProdVec1 < 0):
+                    pairVectors[0] = Quaternion(axis = crossProd,angle = -np.pi/6).rotate(pairVectors[0])
+                    pairVectors[1] = Quaternion(axis = crossProd,angle = np.pi/6).rotate(pairVectors[1])
+                else:
+                    pairVectors[1] = Quaternion(axis = crossProd,angle = -np.pi/6).rotate(pairVectors[1])
+                    pairVectors[0] = Quaternion(axis = crossProd,angle = np.pi/6).rotate(pairVectors[0])
+
+                angleStep = np.pi/10
+                while(self.overlap(self.topol.trj.xyz[0][center]*10 + pairVectors[0]*self.MOBondlength, np.vstack((vectors, self.topol.trj.xyz[0]*10))) and self.overlap(self.topol.trj.xyz[0][center]*10 + pairVectors[1]*self.MOBondlength, np.vstack((vectors, self.topol.trj.xyz[0]*10)))):
+                    pairVectors[0] = Quaternion(axis = sumVec, angle = angleStep).rotate(pairVectors[0])
+                    pairVectors[1] = Quaternion(axis = sumVec, angle = angleStep).rotate(pairVectors[1])
+                    angleStep += angleStep
+
+                    if(angleStep > np.pi):
+                        print("Warning: added oxygen atoms are too close! ABORT, ABORT!!")
+                        break
 
                 #Save relevant vectors
                 vectors = np.vstack((vectors, pairVectors[0]))
@@ -140,13 +163,13 @@ class Wetter:
                 #Calculate and save coordinates of where oxygen should be placed
                 coord = self.topol.trj.xyz[0][center]*10 + pairVectors[0]*self.MOBondlength
 
-                self.overlap(coord, np.vstack((vectors, self.topol.trj.xyz[0]*10)))
+                #self.overlap(coord, np.vstack((vectors, self.topol.trj.xyz[0]*10)))
 
                 coordinates = np.vstack((coordinates, coord))
 
                 coord = self.topol.trj.xyz[0][center]*10 + pairVectors[1]*self.MOBondlength
 
-                self.overlap(coord, np.vstack((vectors, self.topol.trj.xyz[0]*10)))
+                #self.overlap(coord, np.vstack((vectors, self.topol.trj.xyz[0]*10)))
 
                 coordinates = np.vstack((coordinates, coord))
 
@@ -213,9 +236,9 @@ class Wetter:
         #A sum of all vectors pointing from each neighbour of each center to the center itself
         #get coordinates where oxygen should be placed
 
-        vectors, coords = self.calculate_vectors()
+        #vectors, coords = self.calculate_vectors()
         #pairVectors, pairCoords = self.calculate_pair_vectors()
-        #vectors, coords = self.calculate_pair_vectors()
+        vectors, coords = self.calculate_pair_vectors()
         
         #vectors = np.concatenate((vectors, pairVectors), axis=0)
         #coords = np.concatenate((coords, pairCoords), axis=0)
