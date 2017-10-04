@@ -10,6 +10,7 @@
 .LSOverride
 
 *.pdb
+*.psf
 
 # Icon must end with two \r
 Icon

@@ -26,6 +26,8 @@ from radish import Topologizer
 import re
 import numpy as np
 from shutil import copyfile
+import mdtraj as md
+import pandas as pd
 
 #Appends atoms to pdb file
 def append_atoms(file, coords=[], elements = []):
@@ -43,7 +45,7 @@ def append_atoms(file, coords=[], elements = []):
     nrAtoms = len(indices)#self.topol.trj.top.n_atoms
 
     #Variables for the .pdb format
-    residueName = 'TiO'
+    residueName = 'SOL'
     chainIdentifier = 'A'
     residueSequenceNumber = '1'
     occupancy = '1.00'
@@ -146,7 +148,7 @@ def write_file(file, coords=[[0,0,0],[1,1,1]], elements = []):
     nrAtoms = 0
 
     #Variables for the .pdb format
-    residueName = 'TiO'
+    residueName = "   "#'TiO'
     chainIdentifier = 'A'
     residueSequenceNumber = '1'
     occupancy = '1.00'
@@ -233,17 +235,59 @@ def write_file(file, coords=[[0,0,0],[1,1,1]], elements = []):
 
 
 #Remove atoms with coordination less than Nmax - 3 from pdb file
-def remove_lower_coordinated(file, Nmax):
-    fileWet = file.rsplit('.', 1)[0]
-    fileWet = fileWet + "_wet.pdb"
+def remove_lower_coordinated(topol, Nmax):
 
-    copyfile(file, fileWet)
-    file = fileWet
-
-    topol = Topologizer.from_coords(file)
+    #topol = Topologizer.from_coords(file)
     topol.topologize()
-    #Nmax = topol.bondgraph['i'].value_counts().max()
 
+    while(1):
+        indices = []
+
+        #Create inputs for new Topologizer instance
+        xyz = topol.trj.xyz[0]
+        topology = topol.trj.topology.to_dataframe()
+
+        try:
+            i = 3
+            while(i <= Nmax):
+                centerIndices = topol.extract('Ti', environment = {'O': Nmax - i}).index.get_level_values(1)
+                indices.extend(centerIndices)
+                i += 1
+        except IndexError:
+            pass
+
+        try:
+#######################################     FIX     ################################################################
+            #pass
+            oxygenIndices = topol.extract('O', environment = {'Ti': 1}).index.get_level_values(1)
+            indices.extend(oxygenIndices)
+####################################################################################################################
+        except IndexError:
+            pass
+
+        if(len(indices) < 1):
+            print("All low coordinated atoms removed")
+            return topol
+
+        #Remove atoms
+        topology = topology[0].drop(topology[0].index[indices])
+        #Rewrite indices
+        topology.reset_index(drop = True, inplace = True)
+        #Rewrite serial column
+        topology['serial'] = topology.index + 1
+
+        #Remove atoms
+        indices = sorted(indices, reverse = True)   #Sort in decreasing order to allow loop to find correct index
+        for index in indices:
+            xyz = np.vstack((xyz[:index], xyz[index + 1:]))
+
+        print("Removed " + str(len(indices)) + " low coordinated atoms")
+        topology = md.Topology.from_dataframe(topology, bonds = None)
+        trajectory = md.Trajectory(xyz, topology)
+        topol = Topologizer.from_mdtraj(trajectory)
+        topol.topologize()
+
+'''
     content = []
     f = open(file, 'r')
     content = f.readlines()
@@ -328,4 +372,5 @@ def remove_lower_coordinated(file, Nmax):
 
         topol = Topologizer.from_coords(file)
         topol.topologize()
-    return file
+'''
+    #return file

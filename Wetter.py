@@ -7,8 +7,6 @@ Ideas for 4-coordinated centers
 
 '''
 To-do list: 
-. Add library of max coordinations
-. Make it work on nanocluster
 . Add from_dataframe to radish
 . Check for overlap
 . 4-coordinated splits 1 and adsorbs one
@@ -43,12 +41,11 @@ import sys
 
 class Wetter:
 
-    def __init__(self, file, verbose, theta = 104.5, waterFrac=1, hydroxylFrac = 0, MOBondlength = 2.2, MEnvironment = 5, HOHBondlength = 1, OHBondlength = 1, centers = ['Ti'], Nmax = 6):
+    def __init__(self, verbose, topol, theta = 104.5, waterFrac=1, hydroxylFrac = 0, MOBondlength = 2.2, MEnvironment = 5, HOHBondlength = 1, OHBondlength = 1, centers = ['Ti'], Nmax = 6):
         #Input parameters
         self.theta = theta
         self.waterFrac = waterFrac
         self.hydroxylFrac = hydroxylFrac
-        self.file = file
         self.verbose = verbose
         self.MOBondlength = MOBondlength
         self.HOHBondlength = HOHBondlength
@@ -59,8 +56,10 @@ class Wetter:
         #Prepare input file for processing
 
         #Use radish (RAD-algorithm) to compute the coordination of each atom
-        self.topol = Topologizer.from_coords(file)
-        self.topol.topologize()
+        #self.topol = Topologizer.from_coords(file)
+        self.topol = topol
+        #self.topol.topologize()
+
         #Set Nmax which is the maximum coordination (coordination in bulk)
         #self.Nmax = self.topol.bondgraph['i'].value_counts().max()
         #Format float precision(will remove from here later maybe....)
@@ -76,6 +75,7 @@ class Wetter:
 
         except IndexError:
             return [], []
+
     def overlap(self, point, points):
         i = 0
         for atom in points:
@@ -124,6 +124,14 @@ class Wetter:
 
                 pairVectors[0] = pairVectors[0]/np.linalg.norm(pairVectors[0])
                 pairVectors[1] = pairVectors[1]/np.linalg.norm(pairVectors[1])
+
+                #If there are only 2 neighbours, rotate Pi/2 around directional vector to maximize distance to neighbours
+                if(len(tempVectors) == 2):
+                    axis = sumVec
+                    angle = np.pi/2
+                    #O = Quaternion(axis=axis,angle=theta).rotate(O)
+                    pairVectors[0] = Quaternion(axis = axis,angle = angle).rotate(pairVectors[0])
+                    pairVectors[1] = Quaternion(axis = axis,angle = angle).rotate(pairVectors[1])
 
                 #Save relevant vectors
                 vectors = np.vstack((vectors, pairVectors[0]))
@@ -181,7 +189,8 @@ class Wetter:
 
 
                 if(np.linalg.norm(vec) < 0.1):
-                    print("\n\nWarning directional vector almost 0, will not hydrate at atom with index: " + str(center + 1) + "\n")
+                    print("\n\nWarning: directional vector almost 0, will not hydrate at atom with index: " + str(center + 1) + "\n")
+                    print("Probably due to symmetric center..........")
 
                 else:
                     vec = vec/np.linalg.norm(vec)
@@ -204,9 +213,9 @@ class Wetter:
         #A sum of all vectors pointing from each neighbour of each center to the center itself
         #get coordinates where oxygen should be placed
 
-        #vectors, coords = self.calculate_vectors()
+        vectors, coords = self.calculate_vectors()
         #pairVectors, pairCoords = self.calculate_pair_vectors()
-        vectors, coords = self.calculate_pair_vectors()
+        #vectors, coords = self.calculate_pair_vectors()
         
         #vectors = np.concatenate((vectors, pairVectors), axis=0)
         #coords = np.concatenate((coords, pairCoords), axis=0)
@@ -234,10 +243,10 @@ class Wetter:
         print("Adding: " + str(len(watCoords)) + " atoms ("+ str(len(watCoords)/3) +" water molecules)")
 
         #Concatenate water and hydroxide coordinates
-        atoms = np.concatenate((watCoords, hydCoords))
+        coords = np.concatenate((watCoords, hydCoords))
         elements = np.concatenate((watElements, hydElements))
 
-        append_atoms(file = self.file, coords = atoms, elements = elements)
-
+        #append_atoms(file = self.file, coords = atoms, elements = elements)
+        return coords, elements
         #self.add_water(pairCoords, pairVectors)
         #embed()

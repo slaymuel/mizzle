@@ -2,12 +2,14 @@
 usage: python main.py TiO2_110.pdb
 '''
 from Wetter import Wetter
+from radish import Topologizer
 import sys
 import argcomplete
 import argparse
 from WetParser import parse
 from pdbExplorer import remove_lower_coordinated
-
+from pdbExplorer import append_atoms
+from shutil import copyfile
 
 def get_max_coordination(element):
     foundMax = False
@@ -49,18 +51,31 @@ def main(argv=None):
     # Run program
 	print "Are we loud and noisy? " + str(args.verbose)
 	print "The file list is:"
-	print "\"" + " ".join(args.files) + "\""   
+	print "\"" + " ".join(args.files) + "\"" 
+    
+	fileWet = args.files[1].rsplit('.', 1)[0]
+	fileWet = fileWet + "_wet.pdb"
+	copyfile(args.files[1], fileWet)
+
+	topol = Topologizer.from_coords(args.files[1])
 
 	Nmax = get_max_coordination("Ti")
+	print(Nmax)
 	#parse('config.wet')
 	#Remove reactive atoms with low coordination ( > Nmax - 2) and save in temporary fila
-	file = remove_lower_coordinated(args.files[1], Nmax)
+	newtopol = remove_lower_coordinated(topol, Nmax)
+
+	#Save new pdb file (remove later but needed for now by pdbExplorer)
+	newtopol.trj.save(fileWet, force_overwrite = True)
 
 	#Instantiate the wetter module
-	wetter = Wetter(file, args.verbose)
+	wetter = Wetter(args.verbose, newtopol, Nmax = Nmax, centers = ['Ti'])
 
 	#Run algorithm
-	wetter.wet()
+	coords, elements = wetter.wet()
+
+	#Append atoms to pdbFile
+	append_atoms(file = fileWet, coords = coords, elements = elements)
 
 if __name__ == "__main__":
     sys.exit(main())
