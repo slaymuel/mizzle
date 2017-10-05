@@ -164,7 +164,7 @@ def add_water(coords, vectors, theta):
 
     return atoms, elements
 
-#Will also respond to hydrogens closer than 2Å
+#Will also respond to hydrogens closer than 2A
 def overlap(point1, point2):
     vector = np.array([point2[0] - point1[0], point2[1] - point1[1], point2[2] - point1[2]])
     distance = np.sqrt(vector[0]**2 + vector[1]**2 + vector[2]**2)

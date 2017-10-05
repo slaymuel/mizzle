@@ -13,7 +13,7 @@ from shutil import copyfile
 
 def get_max_coordination(element):
     foundMax = False
-    f = open("MaxCoordinations.lib")
+    f = open("MaxCoordinations.data")
     content = f.readlines()
     f.close()
     for line in content:

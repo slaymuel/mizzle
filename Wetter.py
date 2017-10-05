@@ -7,7 +7,8 @@ Ideas for 4-coordinated centers
 
 '''
 To-do list: 
-. Add from_dataframe to radish
+. Add from_dataframe to radish?.....
+. No need to topologize() while iterating in pdbExplorer
 . Check for overlap
 . 4-coordinated splits 1 and adsorbs one
 . np.trigonometric radians
@@ -37,7 +38,9 @@ from pyquaternion import Quaternion
 from radish import Topologizer
 from tqdm import tqdm
 from IPython import embed
+from scipy.optimize import minimize
 import sys
+from IPython import embed
 
 class Wetter:
 
@@ -88,8 +91,22 @@ class Wetter:
         else:
             return False
 
+
+    def potential_function(self, r, points):
+        A = 1
+        cutoff = 4
+        sumPot = 0
+        #points = self.topol.trj.xyz[0]*10
+        for d in points:
+            sumPot += 1/np.linalg.norm(np.array([r[0], r[1], r[2]]) - d) + 1/np.linalg.norm(np.array([r[3], r[4], r[5]]) - d)
+        sumPot += 1/np.linalg.norm(np.array([r[0], r[1], r[2]]) - np.array([r[3], r[4], r[5]]))
+        return sumPot
+
+
+        
+
     #For Nmax - 2 coordinated centers calculate pair-vectors
-    def calculate_pair_vectors(self):
+    def calculate_pair_vectors(self, addedVectors = np.empty([0, 3], dtype=float), addedCoords = np.empty([0, 3], dtype=float)):
         centerIndices, neighbourgraph = self.get_center_neighbours(2)
 
         if(len(centerIndices) > 0):
@@ -97,6 +114,7 @@ class Wetter:
 
             vectors = np.empty([0, 3], dtype=float)
             coordinates = np.empty([0, 3], dtype=float)
+            points = self.topol.trj.xyz[0]*10
 
             randIndices = random.sample(range(0, len(centerIndices)), int((self.waterFrac + self.hydroxylFrac) * float(len(centerIndices))))
             indices = centerIndices[randIndices]
@@ -125,53 +143,89 @@ class Wetter:
                 #Sort vectors with increasing norm
                 pairVectors = sorted(pairVectors, key=lambda x: np.sqrt(x[0]**2 + x[1]**2 + x[2]**2))
 
-                pairVectors[0] = pairVectors[0]/np.linalg.norm(pairVectors[0])
-                pairVectors[1] = pairVectors[1]/np.linalg.norm(pairVectors[1])
+                pairVec1 = pairVectors[0]/np.linalg.norm(pairVectors[0])
+                pairVec2 = pairVectors[1]/np.linalg.norm(pairVectors[1])
 
                 #If there are only 2 neighbours, rotate Pi/2 around directional vector to maximize distance to neighbours
                 if(len(tempVectors) == 2):
                     axis = sumVec
                     angle = np.pi/2
-                    pairVectors[0] = Quaternion(axis = axis,angle = angle).rotate(pairVectors[0])
-                    pairVectors[1] = Quaternion(axis = axis,angle = angle).rotate(pairVectors[1])
+                    pairVec1 = Quaternion(axis = axis,angle = angle).rotate(pairVec1)
+                    pairVec2 = Quaternion(axis = axis,angle = angle).rotate(pairVec2)
 
 
-                crossProd = np.cross(pairVectors[0], pairVectors[1])
-                dotProdVec1 = np.dot(sumVec, pairVectors[0])
-                dotProdVec2 = np.dot(sumVec, pairVectors[1])
+                crossProd = np.cross(pairVec1, pairVec2)
+                dotProdVec1 = np.dot(sumVec, pairVec1)
+                dotProdVec2 = np.dot(sumVec, pairVec2)
                 if(dotProdVec1 < 0):
-                    pairVectors[0] = Quaternion(axis = crossProd,angle = -np.pi/6).rotate(pairVectors[0])
-                    pairVectors[1] = Quaternion(axis = crossProd,angle = np.pi/6).rotate(pairVectors[1])
+                    pairVec1 = Quaternion(axis = crossProd,angle = -np.pi/7).rotate(pairVec1)
+                    pairVec2 = Quaternion(axis = crossProd,angle = np.pi/7).rotate(pairVec2)
                 else:
-                    pairVectors[1] = Quaternion(axis = crossProd,angle = -np.pi/6).rotate(pairVectors[1])
-                    pairVectors[0] = Quaternion(axis = crossProd,angle = np.pi/6).rotate(pairVectors[0])
+                    pairVec2 = Quaternion(axis = crossProd,angle = -np.pi/7).rotate(pairVec2)
+                    pairVec1 = Quaternion(axis = crossProd,angle = np.pi/7).rotate(pairVec1)
 
+                #Super duper inefficient while loop
                 angleStep = np.pi/10
-                while(self.overlap(self.topol.trj.xyz[0][center]*10 + pairVectors[0]*self.MOBondlength, np.vstack((vectors, self.topol.trj.xyz[0]*10))) and self.overlap(self.topol.trj.xyz[0][center]*10 + pairVectors[1]*self.MOBondlength, np.vstack((vectors, self.topol.trj.xyz[0]*10)))):
-                    pairVectors[0] = Quaternion(axis = sumVec, angle = angleStep).rotate(pairVectors[0])
-                    pairVectors[1] = Quaternion(axis = sumVec, angle = angleStep).rotate(pairVectors[1])
-                    angleStep += angleStep
+                angle = np.pi/10
+                coord1 = self.topol.trj.xyz[0][center]*10 + pairVec1*self.MOBondlength
+                coord2 = self.topol.trj.xyz[0][center]*10 + pairVec2*self.MOBondlength
 
-                    if(angleStep > np.pi):
+                allCoords = self.topol.trj.xyz[0]*10
+                allCoords = np.vstack((allCoords, addedCoords))
+                allCoords = np.vstack((allCoords, coordinates))
+
+                while(self.overlap(coord1, allCoords) or self.overlap(coord2, allCoords)):
+                    pairVec1 = Quaternion(axis = sumVec, angle = angleStep).rotate(pairVec1)
+                    pairVec2 = Quaternion(axis = sumVec, angle = angleStep).rotate(pairVec2)
+                    coord1 = self.topol.trj.xyz[0][center]*10 + pairVec1*self.MOBondlength
+                    coord2 = self.topol.trj.xyz[0][center]*10 + pairVec2*self.MOBondlength
+                    angle += angleStep
+
+                    if(angle >= np.pi):
                         print("Warning: added oxygen atoms are too close! ABORT, ABORT!!")
+                        pairVec1 = np.empty([0, 3], dtype=float)
+                        pairVec2 = np.empty([0, 3], dtype=float)
+                        coord1 = np.empty([0, 3], dtype=float)
+                        coord2 = np.empty([0, 3], dtype=float)
                         break
 
+                if(angle < np.pi and angle > np.pi/10):
+                    print("Successfull rotation! :)")
+
+
+                #Minimize potential function
+                M = self.topol.trj.xyz[0][center]*10
+                cons = ({'type': 'eq',
+                    'fun' : lambda x: np.array(np.linalg.norm([x[0], x[1], x[2]] - M) - self.MOBondlength)},
+
+                    {'type': 'eq',
+                    'fun' : lambda x: np.array(np.linalg.norm([x[3], x[4], x[5]] - M) - self.MOBondlength)})
+                #embed()
+                res = minimize(self.potential_function, np.hstack((coord1, coord2)), constraints = cons, args=(points))
+                print(coord1)
+                print(coord2)
+                print(res)
+                coord1 = res.x[:3]
+                coord2 = res.x[3:]
+
+                points = np.vstack((points, coord1))
+                points = np.vstack((points, coord2))
                 #Save relevant vectors
-                vectors = np.vstack((vectors, pairVectors[0]))
-                vectors = np.vstack((vectors, pairVectors[1]))
+                vectors = np.vstack((vectors, pairVec1))
+                vectors = np.vstack((vectors, pairVec2))
 
                 #Calculate and save coordinates of where oxygen should be placed
-                coord = self.topol.trj.xyz[0][center]*10 + pairVectors[0]*self.MOBondlength
+                #coord = self.topol.trj.xyz[0][center]*10 + pairVec1*self.MOBondlength
 
                 #self.overlap(coord, np.vstack((vectors, self.topol.trj.xyz[0]*10)))
 
-                coordinates = np.vstack((coordinates, coord))
+                coordinates = np.vstack((coordinates, coord1))
 
-                coord = self.topol.trj.xyz[0][center]*10 + pairVectors[1]*self.MOBondlength
+                #coord = self.topol.trj.xyz[0][center]*10 + pairVec2*self.MOBondlength
 
                 #self.overlap(coord, np.vstack((vectors, self.topol.trj.xyz[0]*10)))
 
-                coordinates = np.vstack((coordinates, coord))
+                coordinates = np.vstack((coordinates, coord2))
 
             return vectors, coordinates
 
@@ -237,7 +291,7 @@ class Wetter:
         #get coordinates where oxygen should be placed
 
         #vectors, coords = self.calculate_vectors()
-        #pairVectors, pairCoords = self.calculate_pair_vectors()
+        #pairVectors, pairCoords = self.calculate_pair_vectors(vectors, coords)
         vectors, coords = self.calculate_pair_vectors()
         
         #vectors = np.concatenate((vectors, pairVectors), axis=0)
