@@ -28,6 +28,7 @@ import numpy as np
 from shutil import copyfile
 import mdtraj as md
 import pandas as pd
+from timeit import default_timer as timer
 
 #Appends atoms to pdb file
 def append_atoms(file, coords=[], elements = []):
@@ -131,109 +132,6 @@ def append_atoms(file, coords=[], elements = []):
 
     print("Added " + str(len(coords)) + " atoms to " + fileName)
 
-
-
-
-
-
-
-
-
-
-
-def write_file(file, coords=[[0,0,0],[1,1,1]], elements = []):
-    atomList = []
-    float_format = lambda x: "%.3f" % x
-
-    nrAtoms = 0
-
-    #Variables for the .pdb format
-    residueName = "   "#'TiO'
-    chainIdentifier = 'A'
-    residueSequenceNumber = '1'
-    occupancy = '1.00'
-    temperatureFactor = '0.00'
-
-    j = 0
-    #Prepare list of atoms to be appended to pdb file
-    for coord in coords:
-        
-        i = 4
-        nrAtoms += 1
-        tempString = "ATOM"
-
-        #Format tempString to .pdb format
-        while(i <= 80):
-            if(i + len(str(nrAtoms)) == 11):
-                tempString += str(nrAtoms)
-                i += len(str(nrAtoms))
-
-            elif(i + len(elements[j]) == 14):
-                tempString += elements[j]
-                i += len(elements[j])
-
-            elif(i + len(residueName) == 20):
-                tempString += residueName
-                i += len(residueName)
-
-            elif(i +len(chainIdentifier) == 22):
-                tempString += chainIdentifier
-                i += 1
-
-            elif(i + len(residueSequenceNumber) == 26):
-                tempString += residueSequenceNumber
-                i += len(residueSequenceNumber)
-
-            elif(i + len(str(float_format(coord[0]))) == 38):
-                tempString += float_format(coord[0])
-                i += len(str(float_format(coord[0])))
-
-            elif(i + len(str(float_format(coord[1]))) == 46):
-                tempString += float_format(coord[1])
-                i += len(str(float_format(coord[1])))
-
-            elif(i + len(str(float_format(coord[2]))) == 54):
-                tempString += float_format(coord[2])
-                i += len(str(float_format(coord[2])))
-
-            elif(i + len(occupancy) == 60):
-                tempString += occupancy
-                i += len(occupancy)
-
-            elif(i + len(temperatureFactor) == 66):
-                tempString += temperatureFactor
-                i += len(temperatureFactor)
-
-            elif(i == 76):
-                tempString += elements[j]
-                i += len(elements[j])
-
-            tempString += " "
-            i += 1
-        j += 1
-
-        #Append formatted tempString
-        atomList.append(tempString)
-
-    #Don't know what to do with this yet.......
-    if(content[indices[-1] + 1][:3] == 'TER'):
-        print 'found'
-
-    #Append new atoms
-    new_content.extend(atomList)
-
-    #Print to file
-    file = open('test.pdb', 'w')
-    for line in new_content:
-        file.write("%s\n" % line.rstrip())  #also remove newline characters
-    file.close()
-
-
-
-
-
-
-
 #Remove atoms with coordination less than Nmax - 3 from pdb file
 def remove_lower_coordinated(topol, Nmax):
 
@@ -271,6 +169,7 @@ def remove_lower_coordinated(topol, Nmax):
 
         #Remove atoms
         topology = topology[0].drop(topology[0].index[indices])
+
         #Rewrite indices
         topology.reset_index(drop = True, inplace = True)
         #Rewrite serial column
@@ -285,6 +184,7 @@ def remove_lower_coordinated(topol, Nmax):
         topology = md.Topology.from_dataframe(topology, bonds = None)
         trajectory = md.Trajectory(xyz, topology)
         topol = Topologizer.from_mdtraj(trajectory)
+
         topol.topologize()
 
 '''
