@@ -19,9 +19,6 @@ To-do list:
 . Timer
 . Tkinter GUI?
 
-Notes:
-Add water to water+hydroxyl fraction then remove one hydrogen from totalAdded - water fraction
-
 '''
 
 # pymatgen
@@ -141,50 +138,75 @@ class Wetter:
                                     np.array([r[3], r[4], r[5]]))
         return sumPot
 
-    def potential(self, solvate, structure):
+    def potential(self, solvate, centers):
         A = 1
         cutoff = 4
         sumPot = 0
-        i = 0
-        j = 0
-        structure = np.reshape(structure, (-1, 3))
+
+        #structure = np.reshape(structure, (-1, 3))
         solvate = np.reshape(solvate, (-1, 3))
 
-        for d in structure:
-            for r in solvate:
-                sumPot += 1/np.linalg.norm(r - d)
+        i = 0
+        for r in solvate:
+            centerNeighbours = np.array(self.topol.bondgraph.loc[self.topol.bondgraph['j'] == centers[i]]['i'])
+            centerNeighbours = self.topol.trj.xyz[0][centerNeighbours]*10
+            for d in centerNeighbours:
+                sumPot += 1/(np.linalg.norm(r - d)**4)
+            i += 1
 
+        #sumPot += 1/(np.linalg.norm(solvate[0] - solvate[1])**4)
+        #sumPot += 1/(np.linalg.norm(solvate[1] - solvate[0])**4)
+
+        i = 0
+        j = 0
         while i < len(solvate):
             j = i + 1
             while j < len(solvate):
-                sumPot += 1/np.linalg.norm(solvate[i] - solvate[j])
+                sumPot += 2/(np.linalg.norm(solvate[i] - solvate[j])**4)
                 j += 1
             i += 1
 
         return sumPot
 
     def minimization_callback(self, x):
-        print("sumPot: " + str(self.potential(x, self.topol.trj.xyz[0])))
+        #print("sumPot: " + str(self.potential(x, self.topol.trj.xyz[0])))
+        pass
 
-    def optimize(self, coords, centers):
-        cons = []
+    def optimize(self, coords, centers, addedSolvate = [], cons = []):
+        """Optimize position of oxygen
+
+        Parameters
+        ----------
+        coordination : int
+            The coordination for which to construct the neighbourgraph and
+            the indices for all such metal centers
+
+        Returns
+        -------
+        coords
+            Optimized oxygen coordinates
+        vectors
+            Optimized M-O vectors
+        """
         vectors = np.empty([0, 3], dtype = float)
+
+        centerNeighbours = np.array(self.topol.bondgraph.loc[self.topol.bondgraph['j'].isin(centers)]['i'])
+        centerNeighbours = self.topol.trj.xyz[0][centerNeighbours]*10
+
         M = self.topol.trj.xyz[0][centers]*10
-        print coords
-        print M
+
         cons = ({'type': 'eq',
-                        'fun' : lambda x: np.sum(np.absolute(np.apply_along_axis(np.linalg.norm, 1, np.reshape(x,(-1, 3)) - M)) - self.MOBondlength)})
+                        'fun' : lambda x: np.sum(np.absolute(np.apply_along_axis(np.linalg.norm, 1, np.reshape(x, (-1, 3)) - M)) - self.MOBondlength)})
         if(len(M) != len(coords)):
             raise ValueError("Optimization failed: some solvate molecules were not assigned to a center.")
 
         print("Before: " + str(coords))
         res = minimize(self.potential, coords.flatten(),
                         constraints = cons,
-                        args=(self.topol.trj.xyz[0]),
+                        args = centers,#centerNeighbours,#np.vstack((addedSolvate, centerNeighbours)),
                         callback = self.minimization_callback)
         print(res)
         coords = np.reshape(res.x, (-1, 3))
-        print(coords)
 
         i = 0
         for coord in coords:
@@ -217,6 +239,7 @@ class Wetter:
         centerIndices, neighbourgraph = self.get_center_neighbours(2)
 
         if(len(centerIndices) > 0):
+            centers = []
             print("Found " + str(len(centerIndices)) +\
                 " centers with Nmax - 2 coordination")
 
@@ -228,7 +251,7 @@ class Wetter:
                                         self.hydroxylFrac)*\
                                         float(len(centerIndices))))
             indices = centerIndices[randIndices]
-            centers = []
+
             for center in indices:
                 points = np.empty([0, 3], dtype=float)
                 tempVectors = np.empty([0, 3], dtype=float)
@@ -256,13 +279,15 @@ class Wetter:
 
                 #Sort vectors with increasing norm
                 pairVectors = sorted(pairVectors, 
-                                    key = lambda x: np.sqrt(x[0]**2 + x[1]**2 +\
-                                                            x[2]**2))
+                                    key = lambda x: np.sqrt(x[0]**2 + x[1]**2\
+                                                            + x[2]**2))
 
                 pairVec1 = pairVectors[0]/np.linalg.norm(pairVectors[0])
                 pairVec2 = pairVectors[1]/np.linalg.norm(pairVectors[1])
 
-                #If there are only 2 neighbours, rotate Pi/2 around directional vector to maximize distance to neighbours
+                #If there are only 2 neighbours, rotate Pi/2 around 
+                #directional vector to maximize distance to neighbours
+
                 if(len(tempVectors) == 2):
                     axis = sumVec
                     angle = np.pi/2
@@ -286,42 +311,19 @@ class Wetter:
                     pairVec1 = Quaternion(axis = crossProd,angle = np.pi/7).\
                         rotate(pairVec1)
 
-                #Super duper inefficient while loop
-                # angleStep = np.pi/10
-                # angle = np.pi/10
-                coord1 = self.topol.trj.xyz[0][center]*10 + pairVec1*self.MOBondlength
-                coord2 = self.topol.trj.xyz[0][center]*10 + pairVec2*self.MOBondlength
 
-                # allCoords = self.topol.trj.xyz[0]*10
-                # allCoords = np.vstack((allCoords, addedCoords))
-                # allCoords = np.vstack((allCoords, coordinates))
-
-                # while(self.overlap(coord1, allCoords) or self.overlap(coord2, allCoords)):
-                #     pairVec1 = Quaternion(axis = sumVec, angle = angleStep).rotate(pairVec1)
-                #     pairVec2 = Quaternion(axis = sumVec, angle = angleStep).rotate(pairVec2)
-                #     coord1 = self.topol.trj.xyz[0][center]*10 + pairVec1*self.MOBondlength
-                #     coord2 = self.topol.trj.xyz[0][center]*10 + pairVec2*self.MOBondlength
-                #     angle += angleStep
-
-                #     if(angle >= np.pi):
-                #         print("Warning: added oxygen atoms are too close! ABORT, ABORT!!")
-                #         #pairVec1 = np.empty([0, 3], dtype=float)
-                #         #pairVec2 = np.empty([0, 3], dtype=float)
-                #         #coord1 = np.empty([0, 3], dtype=float)
-                #         #coord2 = np.empty([0, 3], dtype=float)
-                #         break
-
-                # if(angle < np.pi and angle > np.pi/10):
-                #     print("Successfull rotation! :)")
-
+                coord1 = self.topol.trj.xyz[0][center]*10 +\ 
+                         pairVec1*self.MOBondlength
+                coord2 = self.topol.trj.xyz[0][center]*10 +\ 
+                         pairVec2*self.MOBondlength
 
                 #Minimize potential function
-                # M = self.topol.trj.xyz[0][center]*10
-                # cons = ({'type': 'eq',
-                #     'fun' : lambda x: np.array(np.linalg.norm([x[0], x[1], x[2]] - M) - self.MOBondlength)},
-
-                #     {'type': 'eq',
-                #     'fun' : lambda x: np.array(np.linalg.norm([x[3], x[4], x[5]] - M) - self.MOBondlength)})
+                M = self.topol.trj.xyz[0][center]*10
+                cons = ({'type': 'eq',
+                     'fun' : lambda x: np.array(np.linalg.norm([x[0], x[1], x[2]] - M) - self.MOBondlength)},
+                     {'type': 'eq',
+                     'fun' : lambda x: np.array(np.linalg.norm([x[3], x[4], x[5]] - M) - self.MOBondlength)})
+                #[coord1, coord2], [pairVec1, pairVec2] = self.optimize(np.vstack((coord1, coord2)), [center, center], coordinates, cons)
                 # #embed()
                 # res = minimize(self.potential_function, np.hstack((coord1, coord2)), constraints = cons, args=(np.vstack((points, coordinates))))
 
@@ -334,30 +336,19 @@ class Wetter:
                 # pairVec1 = (coord1-M)/np.linalg.norm(coord1-M)
                 # pairVec2 = (coord2-M)/np.linalg.norm(coord2-M)
 
-                points = np.vstack((points, coord1))
-                points = np.vstack((points, coord2))
                 #Save relevant vectors
                 vectors = np.vstack((vectors, pairVec1))
                 vectors = np.vstack((vectors, pairVec2))
                 centers.append(center)
                 centers.append(center)
-                #Calculate and save coordinates of where oxygen should be placed
-                #coord = self.topol.trj.xyz[0][center]*10 + pairVec1*self.MOBondlength
-
-                #self.overlap(coord, np.vstack((vectors, self.topol.trj.xyz[0]*10)))
-
                 coordinates = np.vstack((coordinates, coord1))
-
-                #coord = self.topol.trj.xyz[0][center]*10 + pairVec2*self.MOBondlength
-
-                #self.overlap(coord, np.vstack((vectors, self.topol.trj.xyz[0]*10)))
-
                 coordinates = np.vstack((coordinates, coord2))
 
             return vectors, coordinates, centers
 
         else:
-            return np.empty([0, 3], dtype=float), np.empty([0, 3], dtype=float), np.empty([0, 3], dtype=float)
+            return (np.empty([0, 3], dtype=float),
+                    np.empty([0, 3], dtype=float))
 
     #Calculate M-O vectors which determine the positions of hydration molecules
     def calculate_vectors(self):
@@ -382,7 +373,8 @@ class Wetter:
                 for neighbour in neighbourgraph[center]:
 
                     #M-O vector
-                    tempVec = self.topol.trj.xyz[0][center] - self.topol.trj.xyz[0][neighbour]
+                    tempVec = self.topol.trj.xyz[0][center] -\ 
+                              self.topol.trj.xyz[0][neighbour]
 
                     #normalize
                     tempVec = tempVec/np.linalg.norm(tempVec)
@@ -393,7 +385,9 @@ class Wetter:
 
 
                 if(np.linalg.norm(vec) < 0.1):
-                    print("\n\nWarning: directional vector almost 0, will not hydrate at atom with index: " + str(center + 1) + "\n")
+                    print("\n\nWarning: directional vector almost 0, will " +\ 
+                          "not hydrate at atom with index: " +\
+                           str(center + 1) + "\n")
                     print("Probably due to symmetric center..........")
 
                 else:
@@ -409,9 +403,10 @@ class Wetter:
                     #Save coords and correct units
                     coords = np.vstack((coords, coord))
 
-            return vectors, coords, indices
+            return vectors, coords
         else:
-            return np.empty([0, 3], dtype=float), np.empty([0, 3], dtype=float), np.empty([0, 3], dtype=float)
+            return (np.empty([0, 3], dtype=float),
+                    np.empty([0, 3], dtype=float))
 
     def wet(self):
         #A sum of all vectors pointing from each neighbour of each center to the center itself
@@ -421,28 +416,32 @@ class Wetter:
         #pairVectors, pairCoords = self.calculate_pair_vectors(vectors, coords)
         vectors, coords, centers = self.calculate_pair_vectors()
 
+        #vectors = np.concatenate((vectors, pairVectors), axis=0)
+        #coords = np.concatenate((coords, pairCoords), axis=0)
+
         start = timer()
         coords, vectors = self.optimize(coords, centers)
         end = timer()
 
         print("Optimization took: " + str(end-start))
 
-        print(coords)
-        print(vectors)
-        #vectors = np.concatenate((vectors, pairVectors), axis=0)
-        #coords = np.concatenate((coords, pairCoords), axis=0)
         #Check for overlap
 
-        #print whole number and not 1.234 e+4 etc, will remove later....
-        np.set_printoptions(suppress=True)
+        np.set_printoptions(suppress=True) #print whole number and not 1.234 e+4 etc, will remove later....
         
-        randIndices = random.sample(range(0, len(coords)), int(self.hydroxylFrac * float(len(coords))))
+        randIndices = random.sample(range(0, len(coords)), 
+                                    int(self.hydroxylFrac *\ 
+                                        float(len(coords))))
 
         #Add hydroxide to user specified fraction
         hydCoords = coords[randIndices]
         hydVectors = vectors[randIndices]
-        hydCoords, hydElements = AtomCreator.add_hydroxyl(hydCoords, hydVectors, self.theta)
-        print("Adding: " + str(len(hydCoords)) + " atoms ("+ str(len(hydCoords)/3) +" hydroxyl molecules)")
+        hydCoords, hydElements = AtomCreator.add_hydroxyl(hydCoords, 
+                                                          hydVectors, 
+                                                          self.theta)
+
+        print("Adding: " + str(len(hydCoords)) + " atoms ("+\ 
+              str(len(hydCoords)/3) +" hydroxyl molecules)")
 
         #Create mask for the selection of water molecules
         mask = np.ones(len(coords), np.bool)
@@ -451,8 +450,12 @@ class Wetter:
         #Create water molecules at the inverse selection of where hydroxide was placed
         watCoords = coords[mask]
         watVectors = vectors[mask]
-        watCoords, watElements = AtomCreator.add_water(watCoords, watVectors, self.theta)
-        print("Adding: " + str(len(watCoords)) + " atoms ("+ str(len(watCoords)/3) +" water molecules)")
+        watCoords, watElements = AtomCreator.add_water(watCoords, 
+                                                       watVectors, 
+                                                       self.theta)
+
+        print("Adding: " + str(len(watCoords)) + " atoms ("+\ 
+              str(len(watCoords)/3) +" water molecules)")
 
         #Concatenate water and hydroxide coordinates
         coords = np.concatenate((watCoords, hydCoords))

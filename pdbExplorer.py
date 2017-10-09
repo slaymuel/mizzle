@@ -156,9 +156,9 @@ def remove_lower_coordinated(topol, Nmax):
 
         try:
 #######################################     FIX     ################################################################
-            pass
-            #oxygenIndices = topol.extract('O', environment = {'Ti': 1}).index.get_level_values(1)
-            #indices.extend(oxygenIndices)
+            #pass
+            oxygenIndices = topol.extract('O', environment = {'Ti': 1}).index.get_level_values(1)
+            indices.extend(oxygenIndices)
 ####################################################################################################################
         except IndexError:
             pass
