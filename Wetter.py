@@ -8,6 +8,7 @@ Ideas for 4-coordinated centers
 '''
 To-do list: 
 . Find close atoms (recursive function and bondgraph?, use networkX?) (maybe not needed)
+. Particle swarm optimization, checkout pyswarm
 . Provide Jacobian to minimize to improve speed
 . Not enough with only neighbours for minimization (maybe it is, seems to work when changed potential function)
 . 4-coordinated splits 1 and adsorbs one
