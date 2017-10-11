@@ -252,11 +252,12 @@ class Wetter:
             raise ValueError("Optimization failed: some solvate molecules were not assigned to a center.")
 
         #centerNeighbourIndices = np.array(topol.bondgraph.loc[topol.bondgraph['j'] == centers[i]]['i'])
-        centerNeighbours = self.topol.trj.xyz[0][centers]*10
-        numCenters = len(centerNeighbours)
+        #centerNeighbours = self.topol.trj.xyz[0][centers]*10
+        numCenterNeighbours = len(centerNeighbours)
+
         centerCoordination = np.array(self.topol.bondgraph.loc[self.topol.bondgraph['j'].isin(centers)]['j'].value_counts())
         start = timer()
-        potential_c(coords.flatten(), centers, self.topol, centerNeighbours.flatten(), numCenters, centerCoordination)
+        potential_c(coords.flatten(), centers, self.topol, centerNeighbours.flatten(), numCenterNeighbours, centerCoordination)
         end = timer()
         print("Potential takes: " + str(end-start) + " seconds to calculate")
 
@@ -264,10 +265,10 @@ class Wetter:
         
         res = minimize(potential_c, coords.flatten(),
                         #constraints = cons,
-                        args = (centers, self.topol, centerNeighbours.flatten(), numCenters, centerCoordination),#centerNeighbours,#np.vstack((addedSolvate, centerNeighbours)),
+                        args = (centers, self.topol, centerNeighbours.flatten(), numCenterNeighbours, centerCoordination),#centerNeighbours,#np.vstack((addedSolvate, centerNeighbours)),
                         callback = self.minimization_callback,
-                        method = 'BFGS')#,
-                        #options={'disp': True, 'gtol': 1e-05, 'eps': 1.4901161193847656e-08, 'return_all': False, 'maxiter': None, 'norm': np.inf})
+                        method = 'BFGS',
+                        options={'disp': True, 'gtol': 1e-05, 'eps': 1.4901161193847656e-08, 'return_all': False, 'maxiter': None, 'norm': np.inf})
                         #options={'disp': True, 'iprint': 1, 'eps': 1.4901161193847656e-08, 'maxiter': 100, 'ftol': 1e-06})
         print(res)
         coords = np.reshape(res.x, (-1, 3))
