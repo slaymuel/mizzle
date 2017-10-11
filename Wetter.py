@@ -18,6 +18,10 @@ To-do list:
 
 '''
 
+'''
+Notes:
+Repulsion from center is not included
+'''
 
 """Wetter module
 
@@ -78,7 +82,9 @@ from scipy.optimize import minimize
 import sys
 from IPython import embed
 from timeit import default_timer as timer
-
+import cython
+import pyximport; pyximport.install()
+from potential import potential_c
 
 class Wetter:
 
@@ -187,28 +193,22 @@ class Wetter:
 
         solvate = np.reshape(solvate, (-1, 3))
 
+        centersXYZ = self.topol.trj.xyz[0][centers]*10
+        sumPot += np.sum(np.sum((solvate - centersXYZ)**2, axis=1)**(1./2))
+
         i = 0
         for r in solvate:
             centerNeighbours = np.array(self.topol.bondgraph.loc[self.topol.bondgraph['j'] == centers[i]]['i'])
             centerNeighbours = self.topol.trj.xyz[0][centerNeighbours]*10
-            center = self.topol.trj.xyz[0][centers[i]]*10
+            #center = self.topol.trj.xyz[0][centers[i]]*10
 
-            sumPot += (np.linalg.norm(r - center) - 2.2)**2  #Harmonic potential, places solvate on correct distance from M
-            sumPot += np.sum(1/((np.sum((centerNeighbours - r)**2,axis=-1)**(1./2))**4))    #M-O pairpotential
-            #for d in centerNeighbours:
-            #    sumPot += 1/(np.linalg.norm(r - d)**4)
+            #sumPot += (((r[0] - center[0])**2+(r[1] - center[1])**2 +\
+            #          (r[2] - center[2])**2)**(1./2) - 2.2)**2  #Harmonic potential, places solvate on correct distance from M
+
+            sumPot += np.sum(1/((np.sum((centerNeighbours - r)**2)**(1./2))**4))    #Neighbour-O pairpotential
+
             sumPot += np.sum(1/((np.sum((solvate[np.arange(len(solvate)) != i] - r)**2, axis=-1)**(1./2))**4))  #O-O pairpotential
             i += 1
-
-        # i = 0
-        # j = 0
-        # while i < len(solvate):
-        #     j = i + 1
-        #     while j < len(solvate):
-        #         sumPot += 2/(np.linalg.norm(solvate[i] - solvate[j])**4)
-        #         j += 1
-        #     i += 1
-
         return sumPot
 
     def minimization_callback(self, x):
@@ -250,19 +250,24 @@ class Wetter:
                         'fun' : lambda x: np.sum(np.absolute(np.apply_along_axis(np.linalg.norm, 1, np.reshape(x, (-1, 3)) - M) - self.MOBondlength))})
         if(len(M) != len(coords)):
             raise ValueError("Optimization failed: some solvate molecules were not assigned to a center.")
+
+        #centerNeighbourIndices = np.array(topol.bondgraph.loc[topol.bondgraph['j'] == centers[i]]['i'])
+        centerNeighbours = self.topol.trj.xyz[0][centers]*10
+        numCenters = len(centerNeighbours)
+        centerCoordination = np.array(self.topol.bondgraph.loc[self.topol.bondgraph['j'].isin(centers)]['j'].value_counts())
         start = timer()
-        self.potential(coords.flatten(), centers)
+        potential_c(coords.flatten(), centers, self.topol, centerNeighbours.flatten(), numCenters, centerCoordination)
         end = timer()
         print("Potential takes: " + str(end-start) + " seconds to calculate")
 
-        #print("Before: " + str(coords))
+        print("Before: " + str(coords))
         
-        res = minimize(self.potential, coords,
+        res = minimize(potential_c, coords.flatten(),
                         #constraints = cons,
-                        args = centers,#centerNeighbours,#np.vstack((addedSolvate, centerNeighbours)),
+                        args = (centers, self.topol, centerNeighbours.flatten(), numCenters, centerCoordination),#centerNeighbours,#np.vstack((addedSolvate, centerNeighbours)),
                         callback = self.minimization_callback,
-                        method = 'BFGS',
-                        options={'disp': True, 'gtol': 1e-03, 'eps': 1.4901161193847656e-08, 'return_all': False, 'maxiter': None, 'norm': np.inf})
+                        method = 'BFGS')#,
+                        #options={'disp': True, 'gtol': 1e-05, 'eps': 1.4901161193847656e-08, 'return_all': False, 'maxiter': None, 'norm': np.inf})
                         #options={'disp': True, 'iprint': 1, 'eps': 1.4901161193847656e-08, 'maxiter': 100, 'ftol': 1e-06})
         print(res)
         coords = np.reshape(res.x, (-1, 3))
