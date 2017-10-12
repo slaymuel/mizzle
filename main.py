@@ -10,6 +10,7 @@ from WetParser import parse
 from pdbExplorer import remove_lower_coordinated
 from pdbExplorer import append_atoms
 from shutil import copyfile
+from timeit import default_timer as timer
 
 def get_max_coordination(element):
     foundMax = False
@@ -63,6 +64,7 @@ def main(argv=None):
 	print(Nmax)
 	#parse('config.wet')
 	#Remove reactive atoms with low coordination ( > Nmax - 2) and save in temporary fila
+	start = timer()
 	newtopol = remove_lower_coordinated(topol, Nmax)
 
 	#Save new pdb file (remove later but needed for now by pdbExplorer)
@@ -76,6 +78,7 @@ def main(argv=None):
 
 	#Append atoms to pdbFile
 	append_atoms(file = fileWet, coords = coords, elements = elements)
-
+	end = timer()
+	print("Total runtime: " + str(end-start))
 if __name__ == "__main__":
     sys.exit(main())

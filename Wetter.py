@@ -82,14 +82,13 @@ from scipy.optimize import minimize
 import sys
 from IPython import embed
 from timeit import default_timer as timer
-import cython
 import pyximport; pyximport.install()
 from potential import potential_c
 
 class Wetter:
 
-    def __init__(self, verbose, topol, theta=104.5, waterFrac=1, 
-        hydroxylFrac=0, MOBondlength=2.2, HOHBondlength=1, OHBondlength=1, 
+    def __init__(self, verbose, topol, theta=104.5, waterFrac=0.4, 
+        hydroxylFrac=0.2, MOBondlength=2.2, HOHBondlength=1, OHBondlength=1, 
         centers=['Ti'], Nmax=6):
 
         #Input parameters
@@ -187,8 +186,7 @@ class Wetter:
         sumPot
             Value of the potential
         """
-        A = 1
-        cutoff = 4  #Not needed since only neighbours are included
+
         sumPot = 0
 
         solvate = np.reshape(solvate, (-1, 3))
@@ -200,10 +198,10 @@ class Wetter:
         for r in solvate:
             centerNeighbours = np.array(self.topol.bondgraph.loc[self.topol.bondgraph['j'] == centers[i]]['i'])
             centerNeighbours = self.topol.trj.xyz[0][centerNeighbours]*10
-            #center = self.topol.trj.xyz[0][centers[i]]*10
+            center = self.topol.trj.xyz[0][centers[i]]*10
 
-            #sumPot += (((r[0] - center[0])**2+(r[1] - center[1])**2 +\
-            #          (r[2] - center[2])**2)**(1./2) - 2.2)**2  #Harmonic potential, places solvate on correct distance from M
+            sumPot += (((r[0] - center[0])**2+(r[1] - center[1])**2 +\
+                      (r[2] - center[2])**2)**(1./2) - 2.2)**2  #Harmonic potential, places solvate on correct distance from M
 
             sumPot += np.sum(1/((np.sum((centerNeighbours - r)**2)**(1./2))**4))    #Neighbour-O pairpotential
 
@@ -216,7 +214,7 @@ class Wetter:
         #print("sumPot: " + str(self.potential(x, self.topol.trj.xyz[0])))
         pass
 
-    def optimize(self, coords, centers, addedSolvate = [], cons = []):
+    def optimize(self, coords, centers):
         """Set up for minimization scheme by the SLSQP algorithm
 
         Parameters
@@ -241,34 +239,52 @@ class Wetter:
         """
         vectors = np.empty([0, 3], dtype = float)
 
-        centerNeighbours = np.array(self.topol.bondgraph.loc[self.topol.bondgraph['j'].isin(centers)]['i'])
-        centerNeighbours = self.topol.trj.xyz[0][centerNeighbours]*10
-
         M = self.topol.trj.xyz[0][centers]*10
 
-        cons = ({'type': 'eq',
-                        'fun' : lambda x: np.sum(np.absolute(np.apply_along_axis(np.linalg.norm, 1, np.reshape(x, (-1, 3)) - M) - self.MOBondlength))})
+        #cons = ({'type': 'eq',
+        #                'fun' : lambda x: np.sum(np.absolute(np.apply_along_axis(np.linalg.norm, 1, np.reshape(x, (-1, 3)) - M) - self.MOBondlength))})
         if(len(M) != len(coords)):
             raise ValueError("Optimization failed: some solvate molecules were not assigned to a center.")
 
         #centerNeighbourIndices = np.array(topol.bondgraph.loc[topol.bondgraph['j'] == centers[i]]['i'])
         #centerNeighbours = self.topol.trj.xyz[0][centers]*10
-        numCenterNeighbours = len(centerNeighbours)
+        
 
-        centerCoordination = np.array(self.topol.bondgraph.loc[self.topol.bondgraph['j'].isin(centers)]['j'].value_counts())
+        centerCoordination = np.array(self.topol.bondgraph.loc[self.topol.bondgraph['j'].isin(centers)]['j'].value_counts())    #Drops duplicates
+        missing = len(centers) - len(centerCoordination)
+
+        #centerNeighbours = np.array(self.topol.bondgraph.loc[self.topol.bondgraph['j'].isin(centers)]['i'])
+        #centerNeighbours = self.topol.trj.xyz[0][centerNeighbours]*10
+
+        if(missing > 0):
+            print("Adding back duplicates")
+            centerCoordination = np.append(centerCoordination, centerCoordination[len(centerCoordination)-missing:])    #Add duplicates
+            #centerNeighbours = np.append(centerNeighbours, centerNeighbours[len(centerNeighbours)-missing*4:])
+
+        centerNeighbours = np.empty([0, 3], dtype = float)
+        for center in centers:
+            neighbours = np.array(self.topol.bondgraph.loc[self.topol.bondgraph['j'] == center]['i'])
+            neighboursXYZ = self.topol.trj.xyz[0][neighbours]*10
+            centerNeighbours = np.append(centerNeighbours, neighboursXYZ)
+        atoms = (self.topol.trj.xyz[0]*10).flatten()
         start = timer()
-        potential_c(coords.flatten(), centers, self.topol, centerNeighbours.flatten(), numCenterNeighbours, centerCoordination)
+        potential_c(coords.flatten(), centers, self.topol, centerNeighbours.flatten(), centerCoordination, atoms)
         end = timer()
         print("Potential takes: " + str(end-start) + " seconds to calculate")
 
-        print("Before: " + str(coords))
-        
-        res = minimize(potential_c, coords.flatten(),
-                        #constraints = cons,
-                        args = (centers, self.topol, centerNeighbours.flatten(), numCenterNeighbours, centerCoordination),#centerNeighbours,#np.vstack((addedSolvate, centerNeighbours)),
+        print("Before: " + str(coords[0]))
+        # res = minimize(self.potential, coords.flatten(),
+        #         args = centers,
+        #         callback = self.minimization_callback,
+        #         method = 'BFGS')
+                #options={'disp': True, 'gtol': 1e-03, 'iprint': 99, 'eps': 1.4901161193847656e-08, 'maxiter': 1000})
+                #options={'disp': True, 'iprint': 1, 'eps': 1.4901161193847656e-08, 'maxiter': 100, 'ftol': 1e-06})
+
+        res = minimize(potential_c, coords,
+                        args = (centers, self.topol, centerNeighbours.flatten(), centerCoordination, atoms),#centerNeighbours,#np.vstack((addedSolvate, centerNeighbours), self.topol.trj.xyz[0]),
                         callback = self.minimization_callback,
-                        method = 'BFGS',
-                        options={'disp': True, 'gtol': 1e-05, 'eps': 1.4901161193847656e-08, 'return_all': False, 'maxiter': None, 'norm': np.inf})
+                        method = 'L-BFGS-B',
+                        options={'disp': True, 'gtol': 1e-03, 'iprint': 1, 'eps': 1.4901161193847656e-04, 'maxiter': 100})
                         #options={'disp': True, 'iprint': 1, 'eps': 1.4901161193847656e-08, 'maxiter': 100, 'ftol': 1e-06})
         print(res)
         coords = np.reshape(res.x, (-1, 3))
