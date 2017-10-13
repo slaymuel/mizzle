@@ -12,7 +12,6 @@ To-do list:
 . Provide Jacobian to minimize to improve speed
 . Not enough with only neighbours for minimization (maybe it is, seems to work when changed potential function)
 . 4-coordinated splits 1 and adsorbs one
-. Topologizer.extract throws error if no atoms found
 . Boundary conditions, affects distance between atoms
 . Tkinter GUI?
 
@@ -35,7 +34,7 @@ Examples can be given using either the ``Example`` or ``Examples``
 sections. Sections support any reStructuredText formatting, including
 literal blocks::
 
-    $ python example_numpy.py
+    $ python main.py  config.wet TiO_110.pdb
 
 
 Section breaks are created with two blank lines. Section breaks are also
@@ -83,7 +82,8 @@ import sys
 from IPython import embed
 from timeit import default_timer as timer
 import pyximport; pyximport.install()
-from potential import potential_c
+import potential
+import mdtraj as md
 
 class Wetter:
 
@@ -158,57 +158,6 @@ class Wetter:
         else:
             return False
 
-    def find_close_atoms(self, point, atomIndices):
-        i = 0
-        closeAtoms = np.empty([0, 3], dtype = float)
-        
-        for atom in atomIndices:
-            distance = np.linalg.norm(self.topol.trj.xyz[0][point] -\
-                                      self.topol.trj.xyz[0][atom])
-            if(distance < 5):
-                np.vstack((closeAtoms, atom))
-        return closeAtoms
-
-    def potential(self, solvate, centers):
-        """Repulsion potential between solvate molecules and their
-        neighbours. Minimization of this potential yields suitable 
-        coordinates for solvate molecules.
-
-        Parameters
-        ----------
-        solvate : 3N*array(float)
-            Independant variables in the potential function
-        centers : ndarray(float)
-            Coordinates for centers which binds solvate
-
-        Returns
-        -------
-        sumPot
-            Value of the potential
-        """
-
-        sumPot = 0
-
-        solvate = np.reshape(solvate, (-1, 3))
-
-        centersXYZ = self.topol.trj.xyz[0][centers]*10
-        sumPot += np.sum(np.sum((solvate - centersXYZ)**2, axis=1)**(1./2))
-
-        i = 0
-        for r in solvate:
-            centerNeighbours = np.array(self.topol.bondgraph.loc[self.topol.bondgraph['j'] == centers[i]]['i'])
-            centerNeighbours = self.topol.trj.xyz[0][centerNeighbours]*10
-            center = self.topol.trj.xyz[0][centers[i]]*10
-
-            sumPot += (((r[0] - center[0])**2+(r[1] - center[1])**2 +\
-                      (r[2] - center[2])**2)**(1./2) - 2.2)**2  #Harmonic potential, places solvate on correct distance from M
-
-            sumPot += np.sum(1/((np.sum((centerNeighbours - r)**2)**(1./2))**4))    #Neighbour-O pairpotential
-
-            sumPot += np.sum(1/((np.sum((solvate[np.arange(len(solvate)) != i] - r)**2, axis=-1)**(1./2))**4))  #O-O pairpotential
-            i += 1
-        return sumPot
-
     def minimization_callback(self, x):
         print("One iteration done!")
         #print("sumPot: " + str(self.potential(x, self.topol.trj.xyz[0])))
@@ -262,15 +211,25 @@ class Wetter:
             #centerNeighbours = np.append(centerNeighbours, centerNeighbours[len(centerNeighbours)-missing*4:])
 
         centerNeighbours = np.empty([0, 3], dtype = float)
+        centerNumNeighbours = np.empty([0], dtype = int)
+        #print(centerNeighbours2[0].shape)
+
+        i = 0
         for center in centers:
-            neighbours = np.array(self.topol.bondgraph.loc[self.topol.bondgraph['j'] == center]['i'])
-            neighboursXYZ = self.topol.trj.xyz[0][neighbours]*10
-            centerNeighbours = np.append(centerNeighbours, neighboursXYZ)
+            centerNumNeighbours = np.hstack((centerNumNeighbours, len(md.compute_neighbors(self.topol.trj, 0.6, np.array([center]))[0])))
+            centerNeighbours = np.vstack((centerNeighbours, self.topol.trj.xyz[0][md.compute_neighbors(self.topol.trj, 0.6, np.array([center]))[0]]*10))
+            i += 1
+
         atoms = (self.topol.trj.xyz[0]*10).flatten()
         start = timer()
-        potential_c(coords.flatten(), centers, self.topol, centerNeighbours.flatten(), centerCoordination, atoms)
+        potential.potential_c(coords.flatten(), centers, self.topol, atoms, centerNeighbours, centerNumNeighbours)
         end = timer()
         print("Potential takes: " + str(end-start) + " seconds to calculate")
+
+        start = timer()
+        potential.potential_c_jac(coords.flatten(), centers, self.topol, atoms, centerNeighbours, centerNumNeighbours)
+        end = timer()
+        print("Potential Jacobian takes: " + str(end-start) + " seconds to calculate")
 
         print("Before: " + str(coords[0]))
         # res = minimize(self.potential, coords.flatten(),
@@ -280,13 +239,15 @@ class Wetter:
                 #options={'disp': True, 'gtol': 1e-03, 'iprint': 99, 'eps': 1.4901161193847656e-08, 'maxiter': 1000})
                 #options={'disp': True, 'iprint': 1, 'eps': 1.4901161193847656e-08, 'maxiter': 100, 'ftol': 1e-06})
 
-        res = minimize(potential_c, coords,
-                        args = (centers, self.topol, centerNeighbours.flatten(), centerCoordination, atoms),#centerNeighbours,#np.vstack((addedSolvate, centerNeighbours), self.topol.trj.xyz[0]),
+        res = minimize(potential.potential_c, coords,
+                        args = (centers, self.topol, atoms, centerNeighbours, centerNumNeighbours),#centerNeighbours,#np.vstack((addedSolvate, centerNeighbours), self.topol.trj.xyz[0]),
+                        jac = potential.potential_c_jac,
                         callback = self.minimization_callback,
                         method = 'L-BFGS-B',
-                        options={'disp': True, 'gtol': 1e-03, 'iprint': 1, 'eps': 1.4901161193847656e-04, 'maxiter': 100})
+                        options={'disp': True, 'gtol': 1e-05, 'iprint': 1, 'eps': 1.4901161193847656e-05, 'maxiter': 100})
                         #options={'disp': True, 'iprint': 1, 'eps': 1.4901161193847656e-08, 'maxiter': 100, 'ftol': 1e-06})
         print(res)
+        print(res.jac)
         coords = np.reshape(res.x, (-1, 3))
 
         i = 0
