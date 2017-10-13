@@ -15,6 +15,23 @@ def potential_c(np.ndarray[np.float64_t, ndim=1] solvateCoords,
                 np.ndarray[ITYPE_t, ndim=1] centerCoordination,
                 np.ndarray[np.float32_t, ndim=1] atoms):
 
+        """Potential between solvate molecules and their
+        neighbours. Minimization of this potential yields suitable 
+        coordinates for solvate molecules.
+
+        Parameters
+        ----------
+        solvate : 3N*array(float)
+            Independant variables of the potential function
+        centers : ndarray(float)
+            Coordinates for centers which binds solvate
+
+        Returns
+        -------
+        sumPot
+            Value of the potential
+        """
+
         cdef int i = 0
         cdef int u = 0
         cdef int r = 0
