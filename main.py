@@ -60,30 +60,34 @@ def main(argv=None):
 
 	topol = Topologizer.from_coords(args.files[1])
 
-	atoms, molecules = parse('config.wet')
+	atoms = parse('config.wet')
 
 	element = atoms[0].get('element', None)
-	hydroxylFrac = atoms[0].get('hydroxyl', None)
-	waterFrac = atoms[0].get('water', None)
-	coordination = atoms[0].get('coordination', None)
+	waterFrac = None
+	hydroxylFrac = None
+	fraction = None
 
-	print element
-	print hydroxylFrac
-	print waterFrac
+	for atom in atoms:
+		coordination = atom.get('coordination', None)
+		if(coordination == 'high coordinated'):
+			hydroxylFrac = atom.get('hydroxyl', None)
+			waterFrac = atom.get('water', None)
+
+		elif(coordination == 'low coordinated'):
+			fraction = atom.get('fraction', None)
 
 	Nmax = get_max_coordination(atoms[0]['element'])
-	print(Nmax)
+	print("Nmax is: " + str(Nmax))
+
 	#Remove reactive atoms with low coordination ( > Nmax - 2) and save in temporary fila
 	# start = timer()
 	newtopol = remove_lower_coordinated(topol, Nmax)
 
-	# #Save new pdb file (remove later but needed for now by pdbExplorer)
+	# Save new pdb file (remove later but needed for now by pdbExplorer)
 	newtopol.trj.save(fileWet, force_overwrite = True)
 
-	# #Instantiate the wetter module
-	wetter = Wetter(args.verbose, newtopol, Nmax = Nmax, center = element, waterFrac = waterFrac, hydroxylFrac = hydroxylFrac)
-
-	#wetter = Wetter(args.verbose, newtopol, Nmax = Nmax, center = 'Ti')
+	# Instantiate the wetter module
+	wetter = Wetter(args.verbose, newtopol, Nmax = Nmax, center = element, highWaterFrac = waterFrac, highHydroxylFrac = hydroxylFrac, lowFrac = fraction)
 
 	# #Run algorithm
 	coords, elements = wetter.wet()

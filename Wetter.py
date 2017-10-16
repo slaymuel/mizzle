@@ -7,11 +7,7 @@ Ideas for 4-coordinated centers
 
 '''
 To-do list: 
-. Find close atoms (recursive function and bondgraph?, use networkX?) (maybe not needed)
-. Particle swarm optimization, checkout pyswarm
-. Provide Jacobian to minimize to improve speed
-. Not enough with only neighbours for minimization (maybe it is, seems to work when changed potential function)
-. 4-coordinated splits 1 and adsorbs one
+. Rewrite config file for better readability
 . Boundary conditions, affects distance between atoms
 . Tkinter GUI?
 
@@ -87,14 +83,13 @@ import mdtraj as md
 
 class Wetter:
 
-    def __init__(self, verbose, topol, theta=104.5, waterFrac=1, 
-        hydroxylFrac=0, MOBondlength=2.2, HOHBondlength=1, OHBondlength=1, 
+    def __init__(self, verbose, topol, theta=104.5, highWaterFrac=0.5, 
+        highHydroxylFrac=0.5, lowFrac = 0.5, MOBondlength=2.2, HOHBondlength=1, OHBondlength=1, 
         center='Ti', Nmax=6):
 
         #Input parameters
         self.theta = theta
-        self.waterFrac = float(waterFrac)
-        self.hydroxylFrac = float(hydroxylFrac)
+
         self.verbose = verbose
         self.MOBondlength = MOBondlength
         self.HOHBondlength = HOHBondlength
@@ -102,15 +97,14 @@ class Wetter:
         self.theta = theta/360*2*np.pi
         self.center = center
         self.Nmax = Nmax
-        #Prepare input file for processing
+        self.lowFrac = float(lowFrac)
+        self.highWaterFrac = float(highWaterFrac)
+        self.highHydroxylFrac = float(highHydroxylFrac)
 
         #Use radish (RAD-algorithm) to compute the coordination of each atom
-        #self.topol = Topologizer.from_coords(file)
         self.topol = topol
         #self.topol.topologize()
 
-        #Set Nmax which is the maximum coordination (coordination in bulk)
-        #self.Nmax = self.topol.bondgraph['i'].value_counts().max()
         #Format float precision(will remove from here later maybe....)
         self.float_format = lambda x: "%.3f" % x
 
@@ -199,7 +193,6 @@ class Wetter:
 
         # Add removed duplicates
         if(missing > 0):
-            print("Adding back duplicates")
             centerCoordination = np.append(centerCoordination,\
                                            centerCoordination[\
                                            len(centerCoordination)-missing:])
@@ -230,17 +223,19 @@ class Wetter:
         print("Potential Jacobian takes: " + str(end-start) +\
               " seconds to calculate")
 
+        print("Minimizing potential......")
         # Run minimization
         res = minimize(potential.potential_c, coords,
                         args = (centers, self.topol, centerNeighbours,\
                                 centerNumNeighbours),
                         jac = potential.potential_c_jac,
                         method = 'L-BFGS-B',
-                        options={'disp': True, 'gtol': 1e-05, 'iprint': 1,\
+                        options={'disp': False, 'gtol': 1e-05, 'iprint': 0,\
                                  'eps': 1.4901161193847656e-05,\
                                  'maxiter': 1000})
         print res
-
+        if(res.success):
+            print ("\nFound adequate local minima!\n")
         # Since minimization returns flat array we need to reshape
         coords = np.reshape(res.x, (-1, 3))
 
@@ -284,8 +279,7 @@ class Wetter:
             coordinates = np.empty([0, 3], dtype = float)
 
             randIndices = random.sample(range(0, len(centerIndices)),
-                                        int((self.waterFrac +\
-                                        self.hydroxylFrac)*\
+                                        int(self.lowFrac*\
                                         float(len(centerIndices))))
             indices = centerIndices[randIndices]
 
@@ -387,8 +381,8 @@ class Wetter:
 
             #Calculate only for user specified fraction
             randIndices = random.sample(range(0, len(centerIndices)),\
-                                        int((self.waterFrac +\
-                                            self.hydroxylFrac)*\
+                                        int((self.highWaterFrac +\
+                                            self.highHydroxylFrac)*\
                                             float(len(centerIndices))))
             indices = centerIndices[randIndices]
 
@@ -438,13 +432,15 @@ class Wetter:
             List of elements
         """
 
-        #vectors, coords, centers = self.calculate_vectors()
-        #pairVectors, pairCoords, pairCenters = self.calculate_pair_vectors()
-        vectors, coords, centers = self.calculate_pair_vectors()
+        vectors, coords, centers = self.calculate_vectors()
+        pairVectors, pairCoords, pairCenters = self.calculate_pair_vectors()
+        numHighCoord = len(centers)
+        numLowCoord = len(pairCenters)
+        #vectors, coords, centers = self.calculate_pair_vectors()
 
-        #vectors = np.concatenate((vectors, pairVectors), axis=0)
-        #coords = np.concatenate((coords, pairCoords), axis=0)
-        #centers = np.concatenate((centers, pairCenters), axis=0)
+        vectors = np.concatenate((vectors, pairVectors), axis=0)
+        coords = np.concatenate((coords, pairCoords), axis=0)
+        centers = np.concatenate((centers, pairCenters), axis=0)
 
         start = timer()
         coords, vectors = self.optimize(coords, centers)
@@ -453,10 +449,18 @@ class Wetter:
         print("Optimization took: " + str(end-start) + " seconds")
 
         np.set_printoptions(suppress=True)
-        hydCoords = coords[::2]
-        hydVectors = vectors[::2]
-        watCoords = coords[1::2]
-        watVectors = vectors[1::2]
+
+        hydCoords = coords[:int(self.highHydroxylFrac*numHighCoord)]
+        hydVectors = vectors[:int(self.highHydroxylFrac*numHighCoord)]
+        watCoords = coords[int(self.highHydroxylFrac*numHighCoord):numHighCoord]
+        watVectors = vectors[int(self.highHydroxylFrac*numHighCoord):numHighCoord]
+
+        
+        hydCoords = np.concatenate((hydCoords, coords[numHighCoord::2]), axis=0)
+        hydVectors = np.concatenate((hydVectors, vectors[numHighCoord::2]), axis=0)
+        watCoords = np.concatenate((watCoords, coords[numHighCoord + 1::2]), axis=0)
+        watVectors = np.concatenate((watVectors, vectors[numHighCoord + 1::2]), axis=0)
+
         #randIndices = random.sample(range(0, len(coords)), 
         #                            int(self.hydroxylFrac *\
         #                                float(len(coords))))
@@ -469,7 +473,7 @@ class Wetter:
                                                           self.theta)
 
         print("Adding: " + str(len(hydCoords)) + " atoms ("+\
-              str(len(hydCoords)/3) +" hydroxyl molecules)")
+              str(len(hydCoords)/2) +" hydroxyl molecules)")
 
         #Create mask for the selection of water molecules
         #mask = np.ones(len(coords), np.bool)

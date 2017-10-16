@@ -103,7 +103,7 @@ def append_atoms(file, coords=[], elements = []):
 
     #Don't know what to do with this yet.......
     if(content[indices[-1] + 1][:3] == 'TER'):
-        print 'found'
+        pass
 
     #Get old content of file until last atom entry
     new_content = content[:indices[-1] + 1]

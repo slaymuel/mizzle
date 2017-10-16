@@ -1,20 +1,18 @@
+#Example config file
+
+#Kind of hardcoded as it is right now. Will fix this.
+#Every Nmax-2 coordinated splits one water. (maybe add possibility to choose custom splitting fraction later)
+#Not currently possible to choose different metals. Will add this.
+
 # Usage
-atom Ti:
-    coordination: 5
+atom Ti: high coordinated
     water: 0.5
-    hydroxyl: 0.1
+    hydroxyl: 0.5
 
-atom Ti:
-    coordination: 4
-    water: 0.2
-    hydroxyl: 0.3
+atom Ti: low coordinated
+    fraction: 0.5
 
-molecule water:
-    OH bond length: 1
-    HOH bond angle: 104.5
-    MOH bond angle: 115 
-
-molecule hydroxyl:
-    OH bond length: 1
-    MOH bond angle: 115
 end
+
+# high coordinated are Nmax - 1 coordinated atoms
+# low coordinated are Nmax - 2 coordinated atoms

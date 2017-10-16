@@ -174,7 +174,7 @@ def add_water(coords, vectors, theta):
             j += 1
         i += 1
     numOfOverlaps = numOfOverlaps - len(atoms)
-    print(str(numOfOverlaps) + " overlapping atoms")
+    print(str(numOfOverlaps) + " overlapping atoms (probably hydrogens closer than 2)")
 
     return atoms, elements
 
