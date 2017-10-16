@@ -51,4 +51,5 @@ def parse(file):
             break
 
         i += 1
-    return atoms, molecules
+    print(atoms)
+    print(molecules)

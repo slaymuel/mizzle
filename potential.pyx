@@ -1,3 +1,45 @@
+"""Example NumPy style docstrings.
+
+This Cython module contains the potential function and the Jacobian
+
+Example
+-------
+Examples can be given using either the ``Example`` or ``Examples``
+sections. Sections support any reStructuredText formatting, including
+literal blocks::
+
+    $ python example_numpy.py
+
+
+Section breaks are created with two blank lines. Section breaks are also
+implicitly created anytime a new section starts. Section bodies *may* be
+indented:
+
+Notes
+-----
+    This is an example of an indented section. It's like any other section,
+    but the body is indented to help it stand out from surrounding text.
+
+If a section is indented, then a section break is created by
+resuming unindented text.
+
+Attributes
+----------
+module_level_variable1 : int
+    Module level variables may be documented in either the ``Attributes``
+    section of the module docstring, or in an inline docstring immediately
+    following the variable.
+
+    Either form is acceptable, but the two should not be mixed. Choose
+    one convention to document module level variables and be consistent
+    with it.
+
+
+.. _NumPy Documentation HOWTO:
+   https://github.com/numpy/numpy/blob/master/doc/HOWTO_DOCUMENT.rst.txt
+
+"""
+
 #cython: cdivision=True
 #cython: boundscheck=False, wraparound=False, nonecheck=False
 import cython
@@ -15,13 +57,10 @@ ctypedef np.int_t ITYPE_t
 def potential_c(np.ndarray[np.float64_t, ndim=1] solvateCoords, 
                 np.ndarray[ITYPE_t, ndim=1] centers, 
                 object topol,
-                np.ndarray[np.float32_t, ndim=1] atoms,
                 np.ndarray[np.float64_t, ndim=2] centerNeighbours,
                 np.ndarray[ITYPE_t, ndim=1] centerNumNeighbours):
 
-    """Potential between solvate molecules and their
-    neighbours. Minimization of this potential yields suitable 
-    coordinates for solvate molecules.
+    """Potential function
 
     Parameters
     ----------
@@ -29,12 +68,19 @@ def potential_c(np.ndarray[np.float64_t, ndim=1] solvateCoords,
         Independant variables of the potential function
     centers : ndarray(float)
         Coordinates for centers which binds solvate
+    topol : Topologizer instance
+        Topologizer instance of system
+    centerNeighbours : ndarray(float)
+        coordinates of neighbours to solvate
+    centerNumNeighbours : array(int)
+        number of neighbours to each solvate
 
     Returns
     -------
     sumPot
-        Value of the potential
+        Value of the potential at given solvate coordinates
     """
+
 #unsigned int
     cdef int i = 0
     cdef int u = 0
@@ -42,35 +88,37 @@ def potential_c(np.ndarray[np.float64_t, ndim=1] solvateCoords,
     cdef int k = 0
     cdef int d = 0
     cdef double sumPot = 0
-    cdef np.ndarray[np.float32_t, ndim=2] centersXYZ = topol.trj.xyz[0][centers]*10   #Does not drop duplicates(which is a good thing)
+    #Does not drop duplicates(which is a good thing)
+    cdef np.ndarray[np.float32_t, ndim=2] centersXYZ =\
+                                 topol.trj.xyz[0][centers]*10
     cdef double distance = 0
     cdef int solvateLen = len(solvateCoords)/3
 
     for r in range(solvateLen):
+        # Harmonic potential
         distance = ((solvateCoords[r*3] - centersXYZ[i][0])**2 +\
                     (solvateCoords[r*3+1] - centersXYZ[i][1])**2 +\
                     (solvateCoords[r*3+2] - centersXYZ[i][2])**2)**(1./2)
         sumPot += 5*(distance - 2.2)**2
 
-        #for d in range(len(atoms)/3):
-        #    distance = ((solvateCoords[r*3] - atoms[d*3])**2 +\
-        #               (solvateCoords[r*3+1] - atoms[d*3+1])**2 +\
-        #               (solvateCoords[r*3+2] - atoms[d*3+2])**2)**(1./2) 
-        #    sumPot += 1/(distance**4)
-
+        # Solvate-neighbours pair-potential
         for d in range(centerNumNeighbours[r]):
             distance = ((solvateCoords[r*3] - centerNeighbours[k][0])**2 +\
                         (solvateCoords[r*3+1] - centerNeighbours[k][1])**2 +\
-                        (solvateCoords[r*3+2] - centerNeighbours[k][2])**2)**(1./2) 
+                        (solvateCoords[r*3+2] -\
+                         centerNeighbours[k][2])**2)**(1./2)
+
             sumPot += 1/(distance**4)
             k += 1
 
+        # Solvate - solvate pair-potential
         for u in range(solvateLen):
             distance = ((solvateCoords[r*3] - solvateCoords[u*3])**2 +\
                         (solvateCoords[r*3+1] - solvateCoords[u*3+1])**2 +\
-                        (solvateCoords[r*3+2] - solvateCoords[u*3+2])**2)**(1./2)
+                        (solvateCoords[r*3+2] -\
+                         solvateCoords[u*3+2])**2)**(1./2)
     
-            if(distance != 0.0 and distance < 5):
+            if(distance != 0.0):
                 sumPot += 1/(distance**4)
         i += 1
     return sumPot
@@ -79,9 +127,20 @@ def potential_c(np.ndarray[np.float64_t, ndim=1] solvateCoords,
 def potential_c_jac(np.ndarray[np.float64_t, ndim=1] solvateCoords, 
                 np.ndarray[ITYPE_t, ndim=1] centers, 
                 object topol,
-                np.ndarray[np.float32_t, ndim=1] atoms,
                 np.ndarray[np.float64_t, ndim=2] centerNeighbours,
                 np.ndarray[ITYPE_t, ndim=1] centerNumNeighbours):
+
+    """Jacobian of potential
+
+    Parameters
+    ----------
+    Same as potential.potential_c
+        
+    Returns
+    -------
+    jac
+        Jacobian of potential.potential_c
+    """
 
     cdef int i = 0
     cdef int j = 0
@@ -95,15 +154,16 @@ def potential_c_jac(np.ndarray[np.float64_t, ndim=1] solvateCoords,
     centersXYZ = topol.trj.xyz[0][centers]*10
 
     for i in range(solvateLen):
+        # Harmonic potential
         denom = ((solvateCoords[3*i] - centersXYZ[i][0])**2 +\
                  (solvateCoords[3*i+1] - centersXYZ[i][1])**2 +\
                  (solvateCoords[3*i+2] - centersXYZ[i][2])**2)**(1./2)
 
-        jac[3*i] += 2*(solvateCoords[3*i]-centersXYZ[i][0])*(denom-2.2)/denom
-        jac[3*i+1] += 2*(solvateCoords[3*i+1]-centersXYZ[i][1])*(denom-2.2)/denom
-        jac[3*i+2] += 2*(solvateCoords[3*i+2]-centersXYZ[i][2])*(denom-2.2)/denom       
+        jac[3*i] = 10*(solvateCoords[3*i]-centersXYZ[i][0])*(denom-2.2)/denom
+        jac[3*i+1] = 10*(solvateCoords[3*i+1]-centersXYZ[i][1])*(denom-2.2)/denom
+        jac[3*i+2] = 10*(solvateCoords[3*i+2]-centersXYZ[i][2])*(denom-2.2)/denom       
         
-
+        # Solvate - neighbours pair-potential
         for d in range(centerNumNeighbours[i]):
             denom = ((solvateCoords[3*i] - centerNeighbours[k][0])**2 +\
                      (solvateCoords[3*i+1] - centerNeighbours[k][1])**2 +\
@@ -115,8 +175,9 @@ def potential_c_jac(np.ndarray[np.float64_t, ndim=1] solvateCoords,
 
             k += 1
 
+        #Solvate - solvate pair-potential
         for j in range(solvateLen):
-            if(i != j):
+            if(i != j): #Don't include solvate[i] - solvate[i]
                 denom = ((solvateCoords[3*i] - solvateCoords[3*j])**2 +\
                          (solvateCoords[3*i+1] - solvateCoords[3*j+1])**2 +\
                          (solvateCoords[3*i+2] - solvateCoords[3*j+2])**2)**3

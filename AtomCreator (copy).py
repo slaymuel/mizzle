@@ -46,13 +46,20 @@ from pyquaternion import Quaternion
 import numpy as np
 import random
 
-
+#Returns rotational matrix which rotates around x-axis
 def xRotate(vector, angle):
     rotMatrix = [[1, 0, 0], [0, np.cos(angle), -np.sin(angle)], [0, np.sin(angle), np.cos(angle)]]
     dotProd = np.dot(rotMatrix, vector)
     return (dotProd)
 
+#Returns rotational matrix that randomly rotates around given vector
+def random_rotate(vector, angle):
+    rotMatrix = np.array([[np.cos(angle)+vector[0]**2*(1-np.cos(angle)), vector[0]*vector[1]*(1 - np.cos(angle))-vector[2]*np.sin(angle), vector[0]*vector[2]*(1-np.cos(angle))+vector[1]*np.sin(angle)],
+                [vector[1]*vector[0]*(1 - np.cos(angle))+vector[2]*np.sin(angle), np.cos(angle)+vector[1]**2*(1-np.cos(angle)), vector[1]*vector[2]*(1-np.cos(angle))-vector[0]*np.sin(angle)],
+                [vector[2]*vector[0]*(1 - np.cos(angle))-vector[1]*np.sin(angle), vector[2]*vector[1]*(1 - np.cos(angle))+vector[0]*np.sin(angle), np.cos(angle)+vector[2]**2*(1-np.cos(angle))]])
+    return rotMatrix
 
+#Calculate rotation matrix by rotating z-axis (0, 0, 1) to align with MO-vector
 def align(vec1, vec2):
     I = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
     crossProd = np.cross(vec1, vec2)    #sine
@@ -63,13 +70,16 @@ def align(vec1, vec2):
         rotMatrix = I
 
     elif(dotProd < -0.99 and dotProd > -1.01):
+        #print("dotprod is -1")
+        #Find orthonormal vector to both (cross product) and rotate pi
         #mag = np.sqrt(crossProd[0]**2 + crossProd[1]**2 + crossProd[2]**2)
         #ortVec = crossProd/mag
 
+        #Will always be the same? Are there edge cases.....?
         #rotMatrix = -np.array([[-1+2*ortVec[0]**2, 2*ortVec[0]*ortVec[1], 2*ortVec[0]*ortVec[2]],
         #                   [2*ortVec[0]*ortVec[1], -1+2*ortVec[1]**2, 2*ortVec[1]*ortVec[2]],
         #                   [2*ortVec[0]*ortVec[2], 2*ortVec[1]*ortVec[2], -1+2*ortVec[2]**2]])
-        rotMatrix = np.array([[1, 0, 0],[0, -1, 0],[0, 0, -1]]) #-I
+        rotMatrix = -I      #np.array([[1, 0, 0],[0, -1, 0],[0, 0, -1]])
 
     #Need to take into account when vectors are orthagonal i.e when dot product is 0?
     else:
@@ -99,9 +109,20 @@ def add_hydroxyl(coords, vectors, theta):
         H = np.dot(rotMatrix, H)
 
 
+
+        #Random rotation along directional vector
+        #randRotMatrix = self.randomRot(vectors[i], random.uniform(0.1, 2*np.pi))
+        #randRotMatrix = self.randomRot(vectors[i], 1.2)
+
+        #axis around which to rotate the molecule
         axis = vectors[i]
         randAngle = random.uniform(0.1, 2*np.pi)
+        #O = Quaternion(axis=axis,angle=theta).rotate(O)
         H = Quaternion(axis=axis,angle=randAngle).rotate(H)
+
+        #O = randRotMatrix.dot(O)
+        #H1 = randRotMatrix.dot(H1)
+        #H1 = randRotMatrix.dot(H2)
 
         #Translate to correct coordinates
         transVector = [coords[i][0] - O[0], coords[i][1] - O[1], coords[i][2] - O[2]]
@@ -109,6 +130,7 @@ def add_hydroxyl(coords, vectors, theta):
         H = np.array([H[0] + transVector[0], H[1] + transVector[1], H[2] + transVector[2]])
 
         i += 1
+
 
         #Save atoms to be added to pdb file
         atoms = np.vstack((atoms, O))
@@ -139,12 +161,20 @@ def add_water(coords, vectors, theta):
         H2 = np.dot(rotMatrix, H2)
 
 
+
+        #Random rotation along directional vector
+        #randRotMatrix = self.randomRot(vectors[i], random.uniform(0.1, 2*np.pi))
+        #randRotMatrix = self.randomRot(vectors[i], 1.2)
+
         axis = vectors[i]
         randAngle = random.uniform(0.1, 2*np.pi)
         #O = Quaternion(axis=axis,angle=theta).rotate(O)
         H1 = Quaternion(axis=axis,angle=randAngle).rotate(H1)
         H2 = Quaternion(axis=axis,angle=randAngle).rotate(H2)
 
+        #O = randRotMatrix.dot(O)
+        #H1 = randRotMatrix.dot(H1)
+        #H1 = randRotMatrix.dot(H2)
 
         #Translate to correct coordinates
         transVector = [coords[i][0] - O[0], coords[i][1] - O[1], coords[i][2] - O[2]]

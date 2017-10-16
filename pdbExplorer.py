@@ -1,70 +1,15 @@
-#Handles pdb file
+"""pdbExplorer
 
-##################################    .pdb format     ############################################
-#                                                                                                #
-#       ATOM      1 Ti   TiO A   1       0.000   0.000  36.728  1.00  0.00          Ti"          #
-#                                                                                                #
-#                                                                                                #
-#            1 -  6        Record name   "ATOM  "                                                #
-#            7 - 11        Integer       serial       Atom  serial number.                       #
-#           13 - 16        Atom          name         Atom name.                                 #
-#           17             Character     altLoc       Alternate location indicator.              #
-#           18 - 20        Residue name  resName      Residue name.                              #
-#           22             Character     chainID      Chain identifier.                          #
-#           23 - 26        Integer       resSeq       Residue sequence number.                   #
-#           27             AChar         iCode        Code for insertion of residues.            #
-#           31 - 38        Real(8.3)     x            Orthogonal coordinates for X in Angstroms. #
-#           39 - 46        Real(8.3)     y            Orthogonal coordinates for Y in Angstroms. #
-#           47 - 54        Real(8.3)     z            Orthogonal coordinates for Z in Angstroms. #
-#           55 - 60        Real(6.2)     occupancy    Occupancy.                                 #
-#           61 - 66        Real(6.2)     tempFactor   Temperature  factor.                       #
-#           77 - 78        LString(2)    element      Element symbol, right-justified.           #
-#           79 - 80        LString(2)    charge       Charge  on the atom.                       #
-#                                                                                                #
-##################################################################################################
-"""Example NumPy style docstrings.
-
-This module demonstrates documentation as specified by the `NumPy
-Documentation HOWTO`_. Docstrings may extend over multiple lines. Sections
-are created with a section header followed by an underline of equal length.
-
-Example
--------
-Examples can be given using either the ``Example`` or ``Examples``
-sections. Sections support any reStructuredText formatting, including
-literal blocks::
-
-    $ python example_numpy.py
-
-
-Section breaks are created with two blank lines. Section breaks are also
-implicitly created anytime a new section starts. Section bodies *may* be
-indented:
+This module handles formatting of output pdb-file and preparation of
+input pdb-file.
 
 Notes
 -----
-    This is an example of an indented section. It's like any other section,
-    but the body is indented to help it stand out from surrounding text.
-
-If a section is indented, then a section break is created by
-resuming unindented text.
-
-Attributes
-----------
-module_level_variable1 : int
-    Module level variables may be documented in either the ``Attributes``
-    section of the module docstring, or in an inline docstring immediately
-    following the variable.
-
-    Either form is acceptable, but the two should not be mixed. Choose
-    one convention to document module level variables and be consistent
-    with it.
-
-
-.. _NumPy Documentation HOWTO:
-   https://github.com/numpy/numpy/blob/master/doc/HOWTO_DOCUMENT.rst.txt
-
+The append_atoms method appends new atoms to an existing pdb file and
+the remove_lower_coordianted method removes low coordinated atoms from a
+Topology instance.
 """
+
 from radish import Topologizer
 import re
 import numpy as np
@@ -210,12 +155,11 @@ def remove_lower_coordinated(topol, Nmax):
             print("All low coordinated atoms removed")
             return topol
 
-        #Remove atoms
+        #Remove atoms from topology
         topology = topology[0].drop(topology[0].index[indices])
 
-        #Rewrite indices
+        #Rewrite indices and serial
         topology.reset_index(drop = True, inplace = True)
-        #Rewrite serial column
         topology['serial'] = topology.index + 1
 
         #Remove atoms
@@ -229,91 +173,3 @@ def remove_lower_coordinated(topol, Nmax):
         topol = Topologizer.from_mdtraj(trajectory)
 
         topol.topologize()
-
-'''
-    content = []
-    f = open(file, 'r')
-    content = f.readlines()
-    f.close()
-    print("Length of file: " + str(len(content)))
-
-    #Remove low coordinated center atoms
-    while(1):
-        indices = []
-
-        try:
-            i = 3
-            while(i <= Nmax):
-                centerIndices = topol.extract('Ti', environment = {'O': Nmax - i}).index.get_level_values(1)
-                indices.extend(centerIndices)
-                i += 1
-        except IndexError:
-            #print("All low coordinated Ti removed")
-            pass
-
-        try:
-#######################################     FIX     ################################################################
-            pass
-            #oxygenIndices = topol.extract('O', environment = {'Ti': 1}).index.get_level_values(1)
-            #indices.extend(oxygenIndices)
-####################################################################################################################
-        except IndexError:
-            print("All low coordinated oxygen removed")
-            pass
-
-        if(len(indices) < 1):
-            return file
-
-        #Create regular expressions to find undercoordinated atoms by their index
-        regexes = []
-        atomRegex = re.compile("ATOM")
-
-        for index in indices:
-            regexes.append(re.compile("ATOM\s+" + str(index+1) + " "))
-
-        print("Atoms to be removed: " + str(len(regexes)))
-        newContent = []
-
-        i = 0
-        j = 0
-        for line in content:
-            if(atomRegex.match(line)):
-                j += 1
-            if any(regex.match(line) for regex in regexes):
-                i += 1
-            else:
-                if(atomRegex.match(line)):
-                    k = len(str(j-i))
-                    tempStr = ""
-                    while(k < len(str(j))):
-                        tempStr += " "
-                        k += 1
-                    tempStr += str(j-i)
-                    newLine = line.replace(str(j), tempStr, 1)
-                else:
-                    newLine = line
-                newContent.append(newLine)
-            #rewrite indices
-
-        print("Removed " + str(i))
-
-        if(i != len(indices)):
-            print("Error!")
-
-        #file = fileWet
-        #file = 'test.pdb'
-
-        with open(file, 'w') as f:
-            for line in newContent:
-                f.write("%s\n" % line.rstrip()) #also remove newline characters
-
-        print("Length of file after removal: " + str(len(newContent)))
-
-
-        content = newContent
-
-
-        topol = Topologizer.from_coords(file)
-        topol.topologize()
-'''
-    #return file
