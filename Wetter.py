@@ -236,6 +236,9 @@ class Wetter:
         print res
         if(res.success):
             print ("\nFound adequate local minima!\n")
+        else:
+            print("\nDid not end up in local minima but probably the hydration went well! :)\n")
+
         # Since minimization returns flat array we need to reshape
         coords = np.reshape(res.x, (-1, 3))
 

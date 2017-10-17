@@ -1,5 +1,13 @@
+#!/usr/bin/env python
+# PYTHON_ARGCOMPLETE_OK
 '''
-usage: python main.py TiO2_110.pdb
+--------------------------------------
+Example:
+
+
+./main.py config.wet TiO2_110.pdb
+--------------------------------------
+
 '''
 from Wetter import Wetter
 from radish import Topologizer
@@ -41,9 +49,11 @@ def main(argv=None):
     # Options
 	argparser.add_argument("-v", "--verbose", action="store_true",
                             help="Be loud and noisy")
+	
+	argparser.add_argument("Config file (default: config.wet)", nargs="+", default="config.wet",
+                            metavar="conf", help="Config file")
 
-	argparser.add_argument("files", nargs="+", default="topol.top",
-                            metavar="filename", help="List of files")
+	argparser.add_argument("files", nargs="+", metavar="pdb", help="Input structure file in pdb format")
 
     # Parse arguments
 	argcomplete.autocomplete(argparser)
@@ -55,7 +65,8 @@ def main(argv=None):
 	print "\"" + " ".join(args.files) + "\"" 
     
 	fileWet = args.files[1].rsplit('.', 1)[0]
-	fileWet = fileWet + "_wet.pdb"
+	fileExt = args.files[1].rsplit('.', 1)[1]
+	fileWet = fileWet + "_wet." + fileExt
 	copyfile(args.files[1], fileWet)
 
 	topol = Topologizer.from_coords(args.files[1])
@@ -81,7 +92,7 @@ def main(argv=None):
 
 	#Remove reactive atoms with low coordination ( > Nmax - 2) and save in temporary fila
 	# start = timer()
-	newtopol = remove_lower_coordinated(topol, Nmax)
+	newtopol = remove_lower_coordinated(topol, Nmax, element)
 
 	# Save new pdb file (remove later but needed for now by pdbExplorer)
 	newtopol.trj.save(fileWet, force_overwrite = True)
