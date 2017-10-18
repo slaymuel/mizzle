@@ -64,12 +64,12 @@ def main(argv=None):
 	print "The file list is:"
 	print "\"" + " ".join(args.files) + "\"" 
     
-	fileWet = args.files[1].rsplit('.', 1)[0]
-	fileExt = args.files[1].rsplit('.', 1)[1]
+	fileWet = args.files[0].rsplit('.', 1)[0]
+	fileExt = args.files[0].rsplit('.', 1)[1]
 	fileWet = fileWet + "_wet." + fileExt
-	copyfile(args.files[1], fileWet)
+	copyfile(args.files[0], fileWet)
 
-	topol = Topologizer.from_coords(args.files[1])
+	topol = Topologizer.from_coords(args.files[0])
 
 	atoms = parse('config.wet')
 
