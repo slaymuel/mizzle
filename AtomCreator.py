@@ -73,6 +73,45 @@ def align(vec1, vec2):
 
     return rotMatrix
 
+def add_oxygen(coords, vectors):
+    """Adds 1-fold coordinated oxygen
+
+    Parameters
+    ----------
+    coords : array
+        coordinates where oxygen should be placed
+    vectors : array
+        Directional vectors
+
+    Returns
+    -------
+    atoms
+        Oxygen coordinates
+    elements
+        List of element symbols
+    """
+
+    atoms = np.empty([0, 3], dtype=float)
+    elements = []
+
+    i=0
+    #Loop over all coordinates where oxygen is to be placed
+    while i < len(coords):
+        O = np.array([0, 0, 0])
+
+        #Translate to correct coordinates
+        transVector = [coords[i][0] - O[0], coords[i][1] - O[1],\
+                                            coords[i][2] - O[2]]
+        O = np.array([O[0] + transVector[0], O[1] + transVector[1],\
+                                             O[2] + transVector[2]])
+
+        i += 1
+
+        #Save atoms to be added to pdb file
+        atoms = np.vstack((atoms, O))
+        elements.extend('O')
+    return atoms, elements
+
 def add_hydroxyl(coords, vectors, theta):
     """Adds hydroxyl
 

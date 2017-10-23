@@ -2,7 +2,7 @@
 
 #Kind of hardcoded as it is right now. Will fix this.
 #Every Nmax-2 coordinated splits one water. (maybe add possibility to choose custom splitting fraction later)
-#Not currently possible to choose different metals. Will add this.
+#Not currently possible to simultaneously choose multiple different metals. Will add this.
 
 # Usage
 atom Ti: high coordinated
