@@ -1,3 +1,4 @@
+from __future__ import print_function
 """pdbExplorer
 
 This module handles formatting of output pdb-file and preparation of
@@ -136,8 +137,8 @@ def append_atoms(file, coords=[], elements = []):
 
 
 #Remove atoms with coordination less than Nmax - 3 from pdb file
-def remove_lower_coordinated(topol, Nmax, element):
-
+def remove_lower_coordinated(topol, Nmax, element, verbose):
+    verboseprint = print if verbose else lambda *a, **k: None
     #topol = Topologizer.from_coords(file)
     topol.topologize()
 
@@ -175,7 +176,7 @@ def remove_lower_coordinated(topol, Nmax, element):
             i += 1
 
         if(len(indices) < 1):
-            print("All low coordinated atoms removed")
+            print("All low coordinated atoms removed\n")
             return topol
 
         #Remove atoms from topology
@@ -192,7 +193,7 @@ def remove_lower_coordinated(topol, Nmax, element):
         for index in indices:
             xyz = np.vstack((xyz[:index], xyz[index + 1:]))
 
-        print("Removed " + str(len(indices)) + " low coordinated atoms")
+        verboseprint("Removed " + str(len(indices)) + " low coordinated atoms")
         topology = md.Topology.from_dataframe(topology, bonds = None)
         trajectory = md.Trajectory(xyz, topology)
         topol = Topologizer.from_mdtraj(trajectory)

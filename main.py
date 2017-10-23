@@ -15,24 +15,11 @@ import sys
 import argcomplete
 import argparse
 from WetParser import parse
+from WetParser import get_max_coordination
 from pdbExplorer import remove_lower_coordinated
 from pdbExplorer import append_atoms
 from shutil import copyfile
 from timeit import default_timer as timer
-
-def get_max_coordination(element):
-    foundMax = False
-    f = open("MaxCoordinations.data")
-    content = f.readlines()
-    f.close()
-    for line in content:
-        if(element in line):
-            colonIndex = line.index(':')
-            maxCoordination = int(line[colonIndex + 1:])
-            foundMax = True
-            return maxCoordination
-    if(not foundMax):
-        raise ValueError("Could not find maximum coordination number for \"" + element + "\" in MaxCoordinations.lib")
 
 class CustomFormatter(argparse.ArgumentDefaultsHelpFormatter,
                       argparse.RawDescriptionHelpFormatter):
@@ -50,10 +37,12 @@ def main(argv=None):
 	argparser.add_argument("-v", "--verbose", action="store_true",
                             help="Be loud and noisy")
 	
-	argparser.add_argument("Config file (default: config.wet)", nargs="+", default="config.wet",
-                            metavar="conf", help="Config file")
+	argparser.add_argument("Config file (default: config.wet)", nargs="+",\
+	                       default="config.wet", metavar="conf",\
+						   help="Config file")
 
-	argparser.add_argument("files", nargs="+", metavar="pdb", help="Input structure file in pdb format")
+	argparser.add_argument("files", nargs="+", metavar="pdb",\
+	                       help="Input structure file in pdb format")
 
     # Parse arguments
 	argcomplete.autocomplete(argparser)
@@ -64,6 +53,9 @@ def main(argv=None):
 	print "The file list is:"
 	print "\"" + " ".join(args.files) + "\"" 
     
+	## PREPARE INPUT ##
+
+	#Copy pdb input file to inputfile_wet.pdb
 	fileWet = args.files[0].rsplit('.', 1)[0]
 	fileExt = args.files[0].rsplit('.', 1)[1]
 	fileWet = fileWet + "_wet." + fileExt
@@ -71,9 +63,9 @@ def main(argv=None):
 
 	topol = Topologizer.from_coords(args.files[0])
 
-	atoms = parse('config.wet')
+	atoms = parse('config.wet')	#Call WetParser to parse config file
 
-	element = atoms[0].get('element', None)
+	element = atoms[0].get('element', None) #Get element from config.wet
 	waterFrac = None
 	hydroxylFrac = None
 	fraction = None
@@ -81,31 +73,33 @@ def main(argv=None):
 	for atom in atoms:
 		coordination = atom.get('coordination', None)
 		if(coordination == 'high coordinated'):
-			hydroxylFrac = atom.get('hydroxyl', None)
-			waterFrac = atom.get('water', None)
+			hydroxylFrac = float(atom.get('hydroxyl', None))
+			waterFrac = float(atom.get('water', None))
 
 		elif(coordination == 'low coordinated'):
-			fraction = atom.get('fraction', None)
+			fraction = float(atom.get('fraction', None))
 
-	Nmax = get_max_coordination(atoms[0]['element'])
+	Nmax = get_max_coordination(element)	#Get Nmax
 	print("Nmax is: " + str(Nmax))
 
-	#Remove reactive atoms with low coordination ( > Nmax - 2) and save in temporary fila
-	# start = timer()
-	newtopol = remove_lower_coordinated(topol, Nmax, element)
+	#Remove reactive atoms with low coordination ( > Nmax - 2)
+	newtopol = remove_lower_coordinated(topol, Nmax, element, args.verbose)
 
 	# Save new pdb file (remove later but needed for now by pdbExplorer)
 	newtopol.trj.save(fileWet, force_overwrite = True)
 
-	# Instantiate the wetter module
-	wetter = Wetter(args.verbose, newtopol, Nmax = Nmax, center = element, highWaterFrac = waterFrac, highHydroxylFrac = hydroxylFrac, lowFrac = fraction)
+	### RUN PROGRAM ###
 
-	# #Run algorithm
-	coords, elements = wetter.wet()
+	wet = Wetter(args.verbose, newtopol)	#Create Wetter object
+	wet.solvate({'Nmax': Nmax, 'element': element, 'coordination': Nmax - 1,\
+	             'OH': hydroxylFrac, 'OH2': waterFrac, 'O':0.05})
+	wet.solvate({'Nmax': Nmax, 'element': element, 'coordination': Nmax - 2,\
+	             'OH': fraction, 'OH2': 0, 'O':0.1})
+	wet.maximize_distance()	#Run minimization
+	coords, elements = wet.wet() #Get lists of coordinates and elements
 
 	# #Append atoms to pdbFile
 	append_atoms(file = fileWet, coords = coords, elements = elements)
-	# end = timer()
-	# print("Total runtime: " + str(end-start))
+
 if __name__ == "__main__":
     sys.exit(main())

@@ -35,3 +35,17 @@ def parse(file):
 
         i += 1
     return atoms
+
+def get_max_coordination(element):
+    foundMax = False
+    f = open("MaxCoordinations.data")
+    content = f.readlines()
+    f.close()
+    for line in content:
+        if(element in line):
+            colonIndex = line.index(':')
+            maxCoordination = int(line[colonIndex + 1:])
+            foundMax = True
+            return maxCoordination
+    if(not foundMax):
+        raise ValueError("Could not find maximum coordination number for \"" + element + "\" in MaxCoordinations.lib")

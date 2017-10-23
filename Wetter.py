@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 '''
 Questions:
 What is TER at the end of pdb file, only for proteins/aminoacid chains?
@@ -26,12 +28,11 @@ are created with a section header followed by an underline of equal length.
 
 Example
 -------
-Examples can be given using either the ``Example`` or ``Examples``
-sections. Sections support any reStructuredText formatting, including
-literal blocks::
-
-    $ python main.py  config.wet TiO_110.pdb
-
+import Wetter
+wet = Wetter(verbose, radish_instance)
+wet.add_solvate({'Nmax': Nmax, 'element': element, 'coordination': coordination, 'OH': hydroxylFrac, 'OH2': waterFrac, 'O':0.05})
+wet.optimize()
+wet.wet()
 
 Section breaks are created with two blank lines. Section breaks are also
 implicitly created anytime a new section starts. Section bodies *may* be
@@ -63,6 +64,7 @@ module_level_variable1 : int
 """
 # pymatgen
 # ase
+
 import numpy as np
 import pandas as pd
 from pdbExplorer import append_atoms
@@ -81,25 +83,38 @@ import pyximport; pyximport.install()
 import potential
 import mdtraj as md
 
+
 class Wetter:
 
-    def __init__(self, verbose, topol, theta=104.5, highWaterFrac=0.5, 
-        highHydroxylFrac=0.5, lowFrac = 0.5, MOBondlength=2.2, HOHBondlength=1, OHBondlength=1, 
-        center='Ti', Nmax=6):
+    def __init__(self, verbose, topol, theta=104.5, MOBondlength=2.2,\
+                 HOHBondlength=1, OHBondlength=1, center='Ti', Nmax=6):
+
+        self.hydVectors = np.empty([0, 3], dtype=float)
+        self.hydCoords = np.empty([0, 3], dtype=float)
+        self.hydCenters = np.empty([0], dtype=float)
+
+        self.watVectors = np.empty([0, 3], dtype=float)
+        self.watCoords = np.empty([0, 3], dtype=float)
+        self.watCenters = np.empty([0], dtype=float)
+
+        self.oxyVectors = np.empty([0, 3], dtype=float)
+        self.oxyCoords = np.empty([0, 3], dtype=float)
+        self.oxyCenters = np.empty([0], dtype=float)
 
         #Input parameters
         self.theta = theta
 
-        self.verbose = verbose
+        #self.verbose = verbose
+        self.verboseprint = print if verbose else lambda *a, **k: None
         self.MOBondlength = MOBondlength
         self.HOHBondlength = HOHBondlength
         self.OHBondlength = OHBondlength
         self.theta = theta/360*2*np.pi
         self.center = center
         self.Nmax = Nmax
-        self.lowFrac = float(lowFrac)
-        self.highWaterFrac = float(highWaterFrac)
-        self.highHydroxylFrac = float(highHydroxylFrac)
+        self.lowFrac = 1
+        self.highWaterFrac = 1
+        self.highHydroxylFrac = 1
 
         #Use radish (RAD-algorithm) to compute the coordination of each atom
         self.topol = topol
@@ -107,6 +122,121 @@ class Wetter:
 
         #Format float precision(will remove from here later maybe....)
         self.float_format = lambda x: "%.3f" % x
+
+
+    def overlap(self, point, points):
+        i = 0
+        for atom in points:
+            distance = np.linalg.norm(point - atom)
+            if(distance < 2):
+                i += 1
+        if(i > 0):
+            self.verboseprint("Atom overlaps with " + str(i) + " other atoms.")
+            return True
+        else:
+            return False
+
+
+    def optimize(self, coords, centers):
+        """Set up for minimization scheme for the L-BFGS-B algorithm
+
+        Parameters
+        ----------
+        coords : 3*N array(float)
+            The coordination for which to construct the neighbourgraph and
+            the indices for all such metal centers
+        centers : array(int)
+            Array containing all the centers which has bound each solvate
+
+        Raises
+        ------
+        ValueError
+            If one or more coordinates are missing centers
+
+        Returns
+        -------
+        coords
+            Optimized oxygen coordinates
+        vectors
+            Optimized M-O vectors
+        """
+        vectors = np.empty([0, 3], dtype = float)
+        cutoff = 6.0
+        M = self.topol.trj.xyz[0][centers]*10
+
+        if(len(M) != len(coords)):
+            raise ValueError("Optimization failed: some solvate molecules were\
+                              not assigned to a center.")        
+
+        # Drops duplicates
+        centerCoordination = np.array(self.topol.bondgraph.\
+                             loc[self.topol.bondgraph['j'].\
+                             isin(centers)]['j'].value_counts())
+        missing = len(centers) - len(centerCoordination)
+
+        # Add removed duplicates
+        if(missing > 0):
+            centerCoordination = np.append(centerCoordination,\
+                                           centerCoordination[\
+                                           len(centerCoordination)-missing:])
+
+        centerNeighbours = np.empty([0, 3], dtype = float)
+        centerNumNeighbours = np.empty([0], dtype = int)
+
+        # Get neighbours to each center
+        for center in centers:
+            neighbours = md.compute_neighbors(self.topol.trj, cutoff/10.0,\
+                                              np.array([center]))
+            centerNumNeighbours = np.hstack((centerNumNeighbours,\
+                                             len(neighbours[0])))
+            centerNeighbours = np.vstack((centerNeighbours,\
+                                    self.topol.trj.xyz[0][neighbours[0]]*10))
+
+
+        start = timer()
+        potential.potential_c(coords.flatten(), centers, self.topol,\
+                              centerNeighbours, centerNumNeighbours)
+        end = timer()
+        self.verboseprint("Potential takes: " + str(end-start) +\
+                          " seconds to calculate")
+
+        start = timer()
+        potential.potential_c_jac(coords.flatten(), centers, self.topol,\
+                                  centerNeighbours, centerNumNeighbours)
+        end = timer()
+        self.verboseprint("Potential Jacobian takes: " + str(end-start) +\
+              " seconds to calculate\n")
+
+        self.verboseprint("Minimizing potential with " +\
+                          str(len(coords.flatten())) + " free variables...")
+
+        # Run minimization
+        res = minimize(potential.potential_c, coords,
+                        args = (centers, self.topol, centerNeighbours,\
+                                centerNumNeighbours),
+                        jac = potential.potential_c_jac,
+                        method = 'L-BFGS-B',
+                        options={'disp': False, 'gtol': 1e-05, 'iprint': 0,\
+                                 'eps': 1.4901161193847656e-05,\
+                                 'maxiter': 1000})
+        #print res
+        if(res.success):
+            print ("\nSuccessfully minimized potential!\n")
+        else:
+            print("\nDid not end up in local minima, check structure for\
+                   overlap before using it! :)\n")
+
+        # Since minimization returns flat array we need to reshape
+        coords = np.reshape(res.x, (-1, 3))
+
+        # Recalculate directional vectors
+        i = 0
+        for coord in coords:
+            vectors = np.vstack((vectors, (coord-M[i])/\
+                                 np.linalg.norm(coord-M[i])))
+            i += 1
+
+        return coords, vectors
 
 
     def get_center_neighbours(self, coordination):
@@ -142,117 +272,7 @@ class Wetter:
             return [], []
 
 
-    def overlap(self, point, points):
-        i = 0
-        for atom in points:
-            distance = np.linalg.norm(point - atom)
-            if(distance < 2):
-                i += 1
-        if(i > 0):
-            print("Atom overlaps with " + str(i) + " other atoms.")
-            return True
-        else:
-            return False
-
-
-    def optimize(self, coords, centers):
-        """Set up for minimization scheme for the L-BFGS-B algorithm
-
-        Parameters
-        ----------
-        coords : 3*N array(float)
-            The coordination for which to construct the neighbourgraph and
-            the indices for all such metal centers
-        centers : array(int)
-            Array containing all the centers which has bound each solvate
-
-        Raises
-        ------
-        ValueError
-            If one or more coordinates are missing centers
-
-        Returns
-        -------
-        coords
-            Optimized oxygen coordinates
-        vectors
-            Optimized M-O vectors
-        """
-        vectors = np.empty([0, 3], dtype = float)
-        cutoff = 6.0
-        M = self.topol.trj.xyz[0][centers]*10
-
-        if(len(M) != len(coords)):
-            raise ValueError("Optimization failed: some solvate molecules were not assigned to a center.")        
-
-        # Drops duplicates
-        centerCoordination = np.array(self.topol.bondgraph.\
-                             loc[self.topol.bondgraph['j'].\
-                             isin(centers)]['j'].value_counts())
-        missing = len(centers) - len(centerCoordination)
-
-        # Add removed duplicates
-        if(missing > 0):
-            centerCoordination = np.append(centerCoordination,\
-                                           centerCoordination[\
-                                           len(centerCoordination)-missing:])
-
-        centerNeighbours = np.empty([0, 3], dtype = float)
-        centerNumNeighbours = np.empty([0], dtype = int)
-
-        # Get neighbours to each center
-        for center in centers:
-            neighbours = md.compute_neighbors(self.topol.trj, cutoff/10.0,\
-                                              np.array([center]))
-            centerNumNeighbours = np.hstack((centerNumNeighbours,\
-                                             len(neighbours[0])))
-            centerNeighbours = np.vstack((centerNeighbours,\
-                                    self.topol.trj.xyz[0][neighbours[0]]*10))
-
-
-        start = timer()
-        potential.potential_c(coords.flatten(), centers, self.topol,\
-                              centerNeighbours, centerNumNeighbours)
-        end = timer()
-        print("Potential takes: " + str(end-start) + " seconds to calculate")
-
-        start = timer()
-        potential.potential_c_jac(coords.flatten(), centers, self.topol,\
-                                  centerNeighbours, centerNumNeighbours)
-        end = timer()
-        print("Potential Jacobian takes: " + str(end-start) +\
-              " seconds to calculate")
-
-        print("Minimizing potential......")
-        # Run minimization
-        res = minimize(potential.potential_c, coords,
-                        args = (centers, self.topol, centerNeighbours,\
-                                centerNumNeighbours),
-                        jac = potential.potential_c_jac,
-                        method = 'L-BFGS-B',
-                        options={'disp': False, 'gtol': 1e-05, 'iprint': 0,\
-                                 'eps': 1.4901161193847656e-05,\
-                                 'maxiter': 1000})
-        print res
-        if(res.success):
-            print ("\nFound adequate local minima!\n")
-        else:
-            print("\nDid not end up in local minima but probably the hydration went well! :)\n")
-
-        # Since minimization returns flat array we need to reshape
-        coords = np.reshape(res.x, (-1, 3))
-
-        # Recalculate directional vectors
-        i = 0
-        for coord in coords:
-            vectors = np.vstack((vectors, (coord-M[i])/\
-                                 np.linalg.norm(coord-M[i])))
-            i += 1
-
-        return coords, vectors
-
-
-    def calculate_pair_vectors(self):
+    def calculate_pair_vectors(self, coordination, O_frac, OH_frac, OH2_frac):
         """Calculate coordinates and directional vectors
 
         Notes
@@ -271,18 +291,18 @@ class Wetter:
             List of each center that each solvate belongs to
         """
 
-        centerIndices, neighbourgraph = self.get_center_neighbours(2)
+        centerIndices, neighbourgraph = self.get_center_neighbours(coordination)
 
         if(len(centerIndices) > 0):
             centers = np.empty([0], dtype=int)
-            print("Found " + str(len(centerIndices)) +\
-                " centers with Nmax - 2 coordination")
+            self.verboseprint("Found " + str(len(centerIndices)) +\
+                " centers with Nmax - 2 coordination\n")
 
             vectors = np.empty([0, 3], dtype = float)
             coordinates = np.empty([0, 3], dtype = float)
 
             randIndices = random.sample(range(0, len(centerIndices)),
-                                        int(self.lowFrac*\
+                                        int(OH_frac*\
                                         float(len(centerIndices))))
             indices = centerIndices[randIndices]
 
@@ -366,32 +386,31 @@ class Wetter:
                     np.empty([0], dtype=int))
 
 
-    def calculate_vectors(self):
+    def calculate_vectors(self, coordination, O_frac, OH_frac, OH2_frac):
         """ See Wetter.calculate_pair_vectors
         """
+
         vectors = np.empty([0, 3], dtype=float)
         coords = np.empty([0, 3], dtype=float)
         vec = np.array([0,0,0])
 
         #Get indices for metal centers with coordination Nmax - 1
-        centerIndices, neighbourgraph = self.get_center_neighbours(1)
+        centerIndices, neighbourgraph = self.get_center_neighbours(coordination)
 
         if(len(centerIndices) > 0):
             centers = np.empty([0], dtype=int)
 
-            print("Found " + str(len(centerIndices)) +\
+            self.verboseprint("Found " + str(len(centerIndices)) +\
                   " centers with Nmax - 1 coordination")
 
             #Calculate only for user specified fraction
             randIndices = random.sample(range(0, len(centerIndices)),\
-                                        int((self.highWaterFrac +\
-                                            self.highHydroxylFrac)*\
+                                        int((OH2_frac + OH_frac)*\
                                             float(len(centerIndices))))
             indices = centerIndices[randIndices]
 
             #Calculate M-O vectors
-            for center in tqdm(indices, ascii=True,\
-                               desc='Calculating directional vectors'):
+            for center in indices:
                 vec = [0, 0, 0]
                 for neighbour in neighbourgraph[center]:
 
@@ -424,75 +443,110 @@ class Wetter:
                     np.empty([0, 3], dtype=float),
                     np.empty([0], dtype=int))
 
-    def wet(self):
-        """ Main algorithm
 
+    def solvate(self,params):
+        """Solvate
+
+        Parameters
+        ----------
+        params : dict
+            dict with keys:
+                element : string
+                    Element symbol
+                coordination : int
+                    coordination number of element
+                OH_frac : float
+                    fraction of element atoms that should be hydrated with
+                    hydroxyl.
+                OH2_frac : float
+                    fraction of element atoms that should be hydrated with
+                    water.
+                Nmax : int
+                    Maximum coordination number
         Returns
         -------
-        coords : ndarray(float)
-            coordinates for each solvate atom
-        element : array(char)
-            List of elements
+        vectors : ndarray(float)
+            Directional vectors for each solvate
+        coord : ndarray(float)
+            Coordinates for oxygen atom in each solvate
+        centers : ndarray(int)
+            List of each center that each solvate belongs to
         """
 
-        vectors, coords, centers = self.calculate_vectors()
-        pairVectors, pairCoords, pairCenters = self.calculate_pair_vectors()
-        numHighCoord = len(centers)
-        numLowCoord = len(pairCenters)
-        #vectors, coords, centers = self.calculate_pair_vectors()
+        element = params['element']
+        coordination = params['coordination']
+        OH_frac = params['OH']
+        OH2_frac = params['OH2']
+        O_frac = params['O']
+        Nmax = params['Nmax']
+ 
+        if(coordination == Nmax - 1):
+            vectors, coords, centers = self.calculate_vectors(\
+                                           Nmax - coordination,\
+                                           O_frac, OH_frac, OH2_frac)
+            self.hydCoords = np.vstack((self.hydCoords,\
+                                        coords[:int(OH_frac*len(vectors))]))
+            self.hydVectors = np.vstack((self.hydVectors,\
+                                         vectors[:int(OH_frac*len(vectors))]))
+            self.hydCenters = np.hstack((self.hydCenters,\
+                                         centers[:int(OH_frac*len(vectors))]))
+            self.watCoords = np.vstack((self.watCoords,\
+                                        coords[int(OH_frac*len(vectors)):]))
+            self.watVectors = np.vstack((self.watVectors,\
+                                         vectors[int(OH_frac*len(vectors)):]))
+            self.watCenters = np.hstack((self.watCenters,\
+                                         centers[int(OH_frac*len(vectors)):]))
 
-        vectors = np.concatenate((vectors, pairVectors), axis=0)
-        coords = np.concatenate((coords, pairCoords), axis=0)
-        centers = np.concatenate((centers, pairCenters), axis=0)
+        elif(coordination == Nmax - 2):
+            vectors, coords, centers = self.calculate_pair_vectors(\
+                                           Nmax - coordination,\
+                                           O_frac, OH_frac, OH2_frac)
+            self.hydCoords = np.vstack((self.hydCoords, coords[::2]))
+            self.hydVectors = np.vstack((self.hydVectors, vectors[::2]))
+            self.hydCenters = np.hstack((self.hydCenters, centers[::2]))
+            self.watCoords = np.vstack((self.watCoords, coords[1::2]))
+            self.watVectors = np.vstack((self.watVectors, vectors[1::2]))
+            self.watCenters = np.hstack((self.watCenters, centers[1::2]))
 
-        start = timer()
+        else:
+            raise ValueError('Can only hydrate Nmax - 1 and Nmax - 2 centers.\
+                             You tried to hydrate ' + str(Nmax) + ' - ' +\
+                             str(coordination-Nmax) + ' centers. To solve this\
+                                                       issue edit config.wet.')
+
+        return vectors, coords, centers
+
+
+    def maximize_distance(self):
+        vectors = np.empty([0, 3], dtype=float)
+        coords = np.empty([0, 3], dtype=float)
+        centers= np.empty([0], dtype=int)
+
+        coords = np.vstack((coords, self.hydCoords))
+        coords = np.vstack((coords, self.watCoords))
+
+        centers = np.hstack((centers, self.hydCenters.astype(int)))
+        centers = np.hstack((centers, self.watCenters.astype(int)))
+
         coords, vectors = self.optimize(coords, centers)
-        end = timer()
 
-        print("Optimization took: " + str(end-start) + " seconds")
+        self.hydCoords = coords[:len(self.hydCoords)]
+        self.hydVectors = vectors[:len(self.hydCoords)]
+        self.watCoords = coords[len(self.hydCoords):]
+        self.watVectors = vectors[len(self.hydCoords):]
 
-        np.set_printoptions(suppress=True)
 
-        hydCoords = coords[:int(self.highHydroxylFrac*numHighCoord)]
-        hydVectors = vectors[:int(self.highHydroxylFrac*numHighCoord)]
-        watCoords = coords[int(self.highHydroxylFrac*numHighCoord):numHighCoord]
-        watVectors = vectors[int(self.highHydroxylFrac*numHighCoord):numHighCoord]
-
-        
-        hydCoords = np.concatenate((hydCoords, coords[numHighCoord::2]), axis=0)
-        hydVectors = np.concatenate((hydVectors, vectors[numHighCoord::2]), axis=0)
-        watCoords = np.concatenate((watCoords, coords[numHighCoord + 1::2]), axis=0)
-        watVectors = np.concatenate((watVectors, vectors[numHighCoord + 1::2]), axis=0)
-
-        #randIndices = random.sample(range(0, len(coords)), 
-        #                            int(self.hydroxylFrac *\
-        #                                float(len(coords))))
-
-        #Add hydroxide to user specified fraction
-        #hydCoords = coords[randIndices]
-        #hydVectors = vectors[randIndices]
-        hydCoords, hydElements = AtomCreator.add_hydroxyl(hydCoords, 
-                                                          hydVectors, 
+    def wet(self):
+        hydCoords, hydElements = AtomCreator.add_hydroxyl(self.hydCoords, 
+                                                          self.hydVectors, 
                                                           self.theta)
 
-        print("Adding: " + str(len(hydCoords)) + " atoms ("+\
-              str(len(hydCoords)/2) +" hydroxyl molecules)")
-
-        #Create mask for the selection of water molecules
-        #mask = np.ones(len(coords), np.bool)
-        #mask[randIndices] = 0
-
-        #watCoords = coords[mask]
-        #watVectors = vectors[mask]
-        watCoords, watElements = AtomCreator.add_water(watCoords, 
-                                                       watVectors, 
+        watCoords, watElements = AtomCreator.add_water(self.watCoords, 
+                                                       self.watVectors, 
                                                        self.theta)
 
-        print("Adding: " + str(len(watCoords)) + " atoms ("+\
-              str(len(watCoords)/3) +" water molecules)")
-
-        #Concatenate water and hydroxide coordinates and elements
         coords = np.concatenate((watCoords, hydCoords))
         elements = np.concatenate((watElements, hydElements))
-
+        self.coords = coords
+        self.elements = elements
         return coords, elements
