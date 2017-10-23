@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # PYTHON_ARGCOMPLETE_OK
-'''
+''' main
+Wrapper for the Wetter module which performs the actual algorithm.
+
 --------------------------------------
 Example:
 
@@ -88,7 +90,7 @@ def main(argv=None):
     # Save new pdb file (remove later but needed for now by pdbExplorer)
     newtopol.trj.save(fileWet, force_overwrite = True)
 
-    ### RUN PROGRAM ###
+    ### RUN ALGORITHM ###
 
     wet = Wetter(args.verbose, newtopol)	#Create Wetter object
     wet.solvate({'Nmax': Nmax, 'element': element, 'coordination': Nmax - 1,\
@@ -98,7 +100,7 @@ def main(argv=None):
     wet.maximize_distance()	#Run minimization
     coords, elements = wet.wet() #Get lists of coordinates and elements
 
-    # #Append atoms to pdbFile
+    #Append atoms to pdbFile
     append_atoms(file = fileWet, coords = coords, elements = elements)
 
 if __name__ == "__main__":

@@ -1,76 +1,51 @@
 from __future__ import print_function
 
-'''
-Questions:
-What is TER at the end of pdb file, only for proteins/aminoacid chains?
-Ideas for 4-coordinated centers
-'''
-
-
-'''
-To-do list: 
-. Rewrite config file for better readability
-. Boundary conditions, affects distance between atoms
-. Tkinter GUI?
-
-'''
-
-'''
-Notes:
-Repulsion from center is not included
-'''
-
 """Wetter module
 
-This module demonstrates documentation as specified by the `NumPy
-Documentation HOWTO`_. Docstrings may extend over multiple lines. Sections
-are created with a section header followed by an underline of equal length.
+This is the main module that contains the methods for hydration of
+metal oxide surfaces.
 
 Example
 -------
 import Wetter
 wet = Wetter(verbose, radish_instance)
-wet.add_solvate({'Nmax': Nmax, 'element': element, 'coordination': coordination, 'OH': hydroxylFrac, 'OH2': waterFrac, 'O':0.05})
+wet.add_solvate({'Nmax': Nmax, 
+                 'element': element,
+                 'coordination': coordination, 
+                 'OH': hydroxylFrac, 
+                 'OH2': waterFrac, 
+                 'O':0.05})
 wet.optimize()
 wet.wet()
 
-Section breaks are created with two blank lines. Section breaks are also
-implicitly created anytime a new section starts. Section bodies *may* be
-indented:
-
-Notes
------
-    This is an example of an indented section. It's like any other section,
-    but the body is indented to help it stand out from surrounding text.
-
-If a section is indented, then a section break is created by
-resuming unindented text.
-
 Attributes
 ----------
-module_level_variable1 : int
-    Module level variables may be documented in either the ``Attributes``
-    section of the module docstring, or in an inline docstring immediately
-    following the variable.
+    hydVectors : ndarray
+        Array that holds directional vectors for hydroxyl molecules.
+    hydCoords
+        Array that holds oxygen coordinates for hydroxyl molecules.
+    hydCenters
+        Array that holds the corresponding metal atom for each 
+        hydroxyl molecule.
 
-    Either form is acceptable, but the two should not be mixed. Choose
-    one convention to document module level variables and be consistent
-    with it.
-
-
-.. _NumPy Documentation HOWTO:
-   https://github.com/numpy/numpy/blob/master/doc/HOWTO_DOCUMENT.rst.txt
-
+Parameters
+----------
+    theta : double, optional
+        HOH bond angle. Default is 104.5.
+    MOBondlength : double, optional
+        M-O bond length. Default is 2.2
+    HOHBondlength : double, optional
+        H-O bond length in water. Default is 1
+    OHBondlength : double, optional
+        O-H bond length in hydroxyl, Default is 1
 """
-# pymatgen
-# ase
+
 
 import numpy as np
 import pandas as pd
 from pdbExplorer import append_atoms
 import AtomCreator
 import random
-#import quaternion as quat
 from pyquaternion import Quaternion
 from radish import Topologizer
 from tqdm import tqdm
@@ -87,7 +62,7 @@ import mdtraj as md
 class Wetter:
 
     def __init__(self, verbose, topol, theta=104.5, MOBondlength=2.2,\
-                 HOHBondlength=1, OHBondlength=1, center='Ti', Nmax=6):
+                 HOHBondlength=1, OHBondlength=1):
 
         self.hydVectors = np.empty([0, 3], dtype=float)
         self.hydCoords = np.empty([0, 3], dtype=float)
@@ -103,26 +78,22 @@ class Wetter:
 
         #Input parameters
         self.theta = theta
-
-        #self.verbose = verbose
-        self.verboseprint = print if verbose else lambda *a, **k: None
         self.MOBondlength = MOBondlength
         self.HOHBondlength = HOHBondlength
         self.OHBondlength = OHBondlength
         self.theta = theta/360*2*np.pi
-        self.center = center
-        self.Nmax = Nmax
         self.lowFrac = 1
         self.highWaterFrac = 1
         self.highHydroxylFrac = 1
 
         #Use radish (RAD-algorithm) to compute the coordination of each atom
         self.topol = topol
-        #self.topol.topologize()
 
         #Format float precision(will remove from here later maybe....)
         self.float_format = lambda x: "%.3f" % x
 
+        #Set up verbose print function
+        self.verboseprint = print if verbose else lambda *a, **k: None
 
     def overlap(self, point, points):
         i = 0
@@ -239,7 +210,7 @@ class Wetter:
         return coords, vectors
 
 
-    def get_center_neighbours(self, coordination):
+    def get_center_neighbours(self, coordination, center):
         """Construct neighbourgraph where columns are metal centers and rows 
         their coordination shell
 
@@ -257,8 +228,8 @@ class Wetter:
             neighbourgraph if any atoms found, empty otherwise
         """
         try:
-            centerIndices = self.topol.extract(self.center, environment =
-                {'O': self.Nmax - coordination}).index.get_level_values(1)
+            centerIndices = self.topol.extract(center, environment =
+                {'O': coordination}).index.get_level_values(1)
 
             neighbourgraph = self.topol.bondgraph.loc[self.topol.\
                 bondgraph['j'].isin(centerIndices)].\
@@ -272,7 +243,7 @@ class Wetter:
             return [], []
 
 
-    def calculate_pair_vectors(self, coordination, O_frac, OH_frac, OH2_frac):
+    def calculate_pair_vectors(self, coordination, O_frac, OH_frac, OH2_frac, center):
         """Calculate coordinates and directional vectors
 
         Notes
@@ -291,7 +262,7 @@ class Wetter:
             List of each center that each solvate belongs to
         """
 
-        centerIndices, neighbourgraph = self.get_center_neighbours(coordination)
+        centerIndices, neighbourgraph = self.get_center_neighbours(coordination, center)
 
         if(len(centerIndices) > 0):
             centers = np.empty([0], dtype=int)
@@ -386,7 +357,7 @@ class Wetter:
                     np.empty([0], dtype=int))
 
 
-    def calculate_vectors(self, coordination, O_frac, OH_frac, OH2_frac):
+    def calculate_vectors(self, coordination, O_frac, OH_frac, OH2_frac, center):
         """ See Wetter.calculate_pair_vectors
         """
 
@@ -395,7 +366,7 @@ class Wetter:
         vec = np.array([0,0,0])
 
         #Get indices for metal centers with coordination Nmax - 1
-        centerIndices, neighbourgraph = self.get_center_neighbours(coordination)
+        centerIndices, neighbourgraph = self.get_center_neighbours(coordination, center)
 
         if(len(centerIndices) > 0):
             centers = np.empty([0], dtype=int)
@@ -482,8 +453,9 @@ class Wetter:
  
         if(coordination == Nmax - 1):
             vectors, coords, centers = self.calculate_vectors(\
-                                           Nmax - coordination,\
-                                           O_frac, OH_frac, OH2_frac)
+                                           coordination,\
+                                           O_frac, OH_frac, OH2_frac,
+                                           element)
             self.hydCoords = np.vstack((self.hydCoords,\
                                         coords[:int(OH_frac*len(vectors))]))
             self.hydVectors = np.vstack((self.hydVectors,\
@@ -499,8 +471,9 @@ class Wetter:
 
         elif(coordination == Nmax - 2):
             vectors, coords, centers = self.calculate_pair_vectors(\
-                                           Nmax - coordination,\
-                                           O_frac, OH_frac, OH2_frac)
+                                           coordination,\
+                                           O_frac, OH_frac, OH2_frac,
+                                           element)
             self.hydCoords = np.vstack((self.hydCoords, coords[::2]))
             self.hydVectors = np.vstack((self.hydVectors, vectors[::2]))
             self.hydCenters = np.hstack((self.hydCenters, centers[::2]))
