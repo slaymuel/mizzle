@@ -8,19 +8,29 @@ Notes
 -----
 The append_atoms method appends new atoms to an existing pdb file and
 the remove_lower_coordianted method removes low coordinated atoms from a
-Topology instance.
+radish.Topologizer instance.
 """
 
 from radish import Topologizer
-import re
 import numpy as np
-from shutil import copyfile
 import mdtraj as md
-import pandas as pd
-from timeit import default_timer as timer
 
-#Appends atoms to pdb file
+
 def append_atoms(file, coords=[], elements = []):
+    """Append atoms to pdb file
+
+    Parameters
+    ----------
+    file : string
+        pdb file to which atoms will be appended
+    coords : array
+        1D Array of coordinates of all atoms
+    elements : array
+        Array containing element symbols for all atoms
+    verbose : boolean
+        sets verbosity
+    """
+
     atomList = []
     fileName = file
     float_format = lambda x: "%.3f" % x
@@ -30,13 +40,14 @@ def append_atoms(file, coords=[], elements = []):
     fileExt = fileName.rsplit('.', 1)[1]
 
     if(fileExt == "pdb"):
-        #get indices for all entries in list 'content' where the substring 'ATOM' occurs
+        # Get indices for all entries in list 'content' where the substring
+        # 'ATOM' occurs
         indices = [ind for ind, line in enumerate(content) if 'ATOM' in line]
 
-        #get number of atoms
-        nrAtoms = len(indices)#self.topol.trj.top.n_atoms
+        # Get number of atoms
+        nrAtoms = len(indices)
 
-        #Variables for the .pdb format
+        # Variables for the .pdb format
         residueName = 'SOL'
         chainIdentifier = 'A'
         residueSequenceNumber = '1'
@@ -44,14 +55,14 @@ def append_atoms(file, coords=[], elements = []):
         temperatureFactor = '0.00'
 
         j = 0
-        #Prepare list of atoms to be appended to pdb file
+        # Prepare list of atoms to be appended to pdb file
         for coord in coords:
             
             i = 4
             nrAtoms += 1
             tempString = "ATOM"
 
-            #Format tempString to .pdb format
+            # Format tempString to .pdb format
             while(i <= 80):
                 if(i + len(str(nrAtoms)) == 11):
                     tempString += str(nrAtoms)
@@ -101,29 +112,29 @@ def append_atoms(file, coords=[], elements = []):
                 i += 1
             j += 1
 
-            #Append formatted tempString
+            # Append formatted tempString
             atomList.append(tempString)
 
-        #Don't know what to do with this yet.......
+        # Termination sequence
         if(content[indices[-1] + 1][:3] == 'TER'):
             pass
 
-        #Get old content of file until last atom entry
+        # Get old content of file until last atom entry
         new_content = content[:indices[-1] + 1]
-        #Append new atoms
+        # Append new atoms
         new_content.extend(atomList)
-        #append lines after the final atom entry
+        # Append lines after the final atom entry
         new_content.extend(content[indices[-1] + 1:])
 
-        #Print to file
+        # Print to file
         file = open(file, 'w')
         for line in new_content:
-            file.write("%s\n" % line.rstrip())  #also remove newline characters
+            file.write("%s\n" % line.rstrip())
         file.close()
 
         print("Added " + str(len(coords)) + " atoms to " + fileName)
 
-    #mdtraj doesnt like xyz so no use
+    # mdtraj doesnt like xyz so no use
     elif(fileExt == "xyz"):
         i = 0
         file = open(file, 'w')
@@ -136,10 +147,27 @@ def append_atoms(file, coords=[], elements = []):
         file.close()
 
 
-#Remove atoms with coordination less than Nmax - 3 from pdb file
 def remove_lower_coordinated(topol, Nmax, element, verbose):
+    """Removes low coordinated (<Nmax-3) atoms
+
+    Parameters
+    ----------
+    topol : radish.Topologizer instance
+        Topologizer instance of metal oxide crystal
+    Nmax : int
+        Maximum coordination for element
+    element : string
+        Element symbol for metal atom
+    verbose : boolean
+        sets verbosity
+
+    Returns
+    -------
+    topol
+        radish.Topologizer instance with low coordinated atoms removed
+    """
+
     verboseprint = print if verbose else lambda *a, **k: None
-    #topol = Topologizer.from_coords(file)
     topol.topologize()
 
     while(1):
@@ -149,7 +177,7 @@ def remove_lower_coordinated(topol, Nmax, element, verbose):
         xyz = topol.trj.xyz[0]
         topology = topol.trj.topology.to_dataframe()
 
-
+        # Get low coordinated atoms using radish
         i = 3
         while(i <= Nmax):
             try:

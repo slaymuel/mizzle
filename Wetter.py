@@ -49,10 +49,8 @@ import random
 from pyquaternion import Quaternion
 from radish import Topologizer
 from tqdm import tqdm
-from IPython import embed
 from scipy.optimize import minimize
 import sys
-from IPython import embed
 from timeit import default_timer as timer
 import pyximport; pyximport.install()
 import potential
@@ -95,18 +93,6 @@ class Wetter:
         #Set up verbose print function
         self.verboseprint = print if verbose else lambda *a, **k: None
 
-    def overlap(self, point, points):
-        i = 0
-        for atom in points:
-            distance = np.linalg.norm(point - atom)
-            if(distance < 2):
-                i += 1
-        if(i > 0):
-            self.verboseprint("Atom overlaps with " + str(i) + " other atoms.")
-            return True
-        else:
-            return False
-
 
     def optimize(self, coords, centers):
         """Set up for minimization scheme for the L-BFGS-B algorithm
@@ -131,6 +117,7 @@ class Wetter:
         vectors
             Optimized M-O vectors
         """
+
         vectors = np.empty([0, 3], dtype = float)
         cutoff = 6.0
         M = self.topol.trj.xyz[0][centers]*10
@@ -145,7 +132,7 @@ class Wetter:
                              isin(centers)]['j'].value_counts())
         missing = len(centers) - len(centerCoordination)
 
-        # Add removed duplicates
+        # Readd removed duplicates
         if(missing > 0):
             centerCoordination = np.append(centerCoordination,\
                                            centerCoordination[\
@@ -164,6 +151,7 @@ class Wetter:
                                     self.topol.trj.xyz[0][neighbours[0]]*10))
 
 
+        #Print timings if verbose
         start = timer()
         potential.potential_c(coords.flatten(), centers, self.topol,\
                               centerNeighbours, centerNumNeighbours)
@@ -190,15 +178,15 @@ class Wetter:
                         options={'disp': False, 'gtol': 1e-05, 'iprint': 0,\
                                  'eps': 1.4901161193847656e-05,\
                                  'maxiter': 1000})
-        #print res
+
         if(res.success):
             print ("\nSuccessfully minimized potential!\n")
         else:
             print("\nDid not end up in local minima, check structure for\
                    overlap before using it! :)\n")
 
-        # Since minimization returns flat array we need to reshape
-        coords = np.reshape(res.x, (-1, 3))
+        coords = np.reshape(res.x, (-1, 3))# Since minimization returns flat
+                                           # array we need to reshape
 
         # Recalculate directional vectors
         i = 0
@@ -243,7 +231,8 @@ class Wetter:
             return [], []
 
 
-    def calculate_pair_vectors(self, coordination, O_frac, OH_frac, OH2_frac, center):
+    def calculate_pair_vectors(self, coordination, O_frac,\
+                               OH_frac, OH2_frac, center):
         """Calculate coordinates and directional vectors
 
         Notes
@@ -262,7 +251,8 @@ class Wetter:
             List of each center that each solvate belongs to
         """
 
-        centerIndices, neighbourgraph = self.get_center_neighbours(coordination, center)
+        centerIndices, neighbourgraph = self.get_center_neighbours(\
+                                            coordination, center)
 
         if(len(centerIndices) > 0):
             centers = np.empty([0], dtype=int)
@@ -289,16 +279,14 @@ class Wetter:
                                         self.topol.trj.xyz[0][neighbour]*10))
                     tempVec = self.topol.trj.xyz[0][center] -\
                         self.topol.trj.xyz[0][neighbour]
-                    tempVec = tempVec/np.linalg.norm(tempVec)
+                    tempVec = tempVec/np.linalg.norm(tempVec) # M-O vector
 
                     tempVectors = np.vstack((tempVectors, tempVec))
-                    sumVec += tempVec
+                    sumVec += tempVec # Sum M-O vectors
 
-                #Normalize the sum of vectors
                 sumVec = sumVec/np.linalg.norm(sumVec)
 
                 for vector in tempVectors:
-                    
                     tempVector = sumVec - vector
                     pairVectors = np.vstack((pairVectors, tempVector))
 
@@ -307,6 +295,7 @@ class Wetter:
                                     key = lambda x: np.sqrt(x[0]**2 + x[1]**2\
                                                             + x[2]**2))
 
+                # Choose the two vectors with smallest norm
                 pairVec1 = pairVectors[0]/np.linalg.norm(pairVectors[0])
                 pairVec2 = pairVectors[1]/np.linalg.norm(pairVectors[1])
 
@@ -320,7 +309,8 @@ class Wetter:
                     pairVec2 = Quaternion(axis = axis,angle = angle).\
                         rotate(pairVec2)
 
-
+                # Rotate the vectors towards each other
+                # (away from center of bulk)
                 crossProd = np.cross(pairVec1, pairVec2)
                 dotProdVec1 = np.dot(sumVec, pairVec1)
                 dotProdVec2 = np.dot(sumVec, pairVec2)
@@ -335,13 +325,13 @@ class Wetter:
                     pairVec1 = Quaternion(axis = crossProd,angle = np.pi/7).\
                         rotate(pairVec1)
 
-
+                # Calculate coordinates
                 coord1 = self.topol.trj.xyz[0][center]*10 +\
                          pairVec1*self.MOBondlength
                 coord2 = self.topol.trj.xyz[0][center]*10 +\
                          pairVec2*self.MOBondlength
 
-                #Save relevant vectors
+                # Save relevant coordinates
                 vectors = np.vstack((vectors, pairVec1))
                 vectors = np.vstack((vectors, pairVec2))
                 centers = np.append(centers, center)
@@ -357,7 +347,8 @@ class Wetter:
                     np.empty([0], dtype=int))
 
 
-    def calculate_vectors(self, coordination, O_frac, OH_frac, OH2_frac, center):
+    def calculate_vectors(self, coordination, O_frac,\
+                          OH_frac, OH2_frac, center):
         """ See Wetter.calculate_pair_vectors
         """
 
@@ -366,9 +357,10 @@ class Wetter:
         vec = np.array([0,0,0])
 
         #Get indices for metal centers with coordination Nmax - 1
-        centerIndices, neighbourgraph = self.get_center_neighbours(coordination, center)
+        centerIndices, neighbourgraph = self.get_center_neighbours(\
+                                            coordination, center)
 
-        if(len(centerIndices) > 0):
+        if(len(centerIndices) > 0): # If there are any Nmax-1 centers
             centers = np.empty([0], dtype=int)
 
             self.verboseprint("Found " + str(len(centerIndices)) +\
@@ -384,19 +376,17 @@ class Wetter:
             for center in indices:
                 vec = [0, 0, 0]
                 for neighbour in neighbourgraph[center]:
-
-                    #M-O vector
                     tempVec = self.topol.trj.xyz[0][center] -\
                               self.topol.trj.xyz[0][neighbour]
-                    tempVec = tempVec/np.linalg.norm(tempVec)
-                    vec = vec + tempVec
+                    tempVec = tempVec/np.linalg.norm(tempVec) # M-O vector
+                    vec = vec + tempVec # Sum M-O vectors
 
                 #If norm of directional vector too small
                 if(np.linalg.norm(vec) < 0.1):
                     print("\n\nWarning: directional vector almost 0, will " +\
                           "not hydrate at atom with index: " +\
                            str(center + 1))
-                    print("Probably due to symmetric center..........  \n")
+                    print("Probably due to symmetric center...\n")
 
                 else:
                     centers = np.append(centers, center)
@@ -409,7 +399,8 @@ class Wetter:
                     coords = np.vstack((coords, coord))
 
             return vectors, coords, centers
-        else:
+
+        else: # Else return empty arrays
             return (np.empty([0, 3], dtype=float),
                     np.empty([0, 3], dtype=float),
                     np.empty([0], dtype=int))
@@ -474,6 +465,10 @@ class Wetter:
                                            coordination,\
                                            O_frac, OH_frac, OH2_frac,
                                            element)
+
+            # Take every other element as hydroxyl and the others as water since
+            # each 4-coordinated metal site should have one water and one 
+            # hydroxyl
             self.hydCoords = np.vstack((self.hydCoords, coords[::2]))
             self.hydVectors = np.vstack((self.hydVectors, vectors[::2]))
             self.hydCenters = np.hstack((self.hydCenters, centers[::2]))
@@ -491,10 +486,18 @@ class Wetter:
 
 
     def maximize_distance(self):
+        """Maximize distance between solvate and it's neighbours
+
+        Notes
+        -------
+        Collects all coordinates and calls optimize()
+        """
+
         vectors = np.empty([0, 3], dtype=float)
         coords = np.empty([0, 3], dtype=float)
         centers= np.empty([0], dtype=int)
 
+        #Stack coordinates and centers and call optimize()
         coords = np.vstack((coords, self.hydCoords))
         coords = np.vstack((coords, self.watCoords))
 
@@ -503,6 +506,7 @@ class Wetter:
 
         coords, vectors = self.optimize(coords, centers)
 
+        #Set attributes to optimized values
         self.hydCoords = coords[:len(self.hydCoords)]
         self.hydVectors = vectors[:len(self.hydCoords)]
         self.watCoords = coords[len(self.hydCoords):]
@@ -510,6 +514,16 @@ class Wetter:
 
 
     def wet(self):
+        """Creates atoms at the calculated coordinates
+
+        Returns
+        -------
+        coords : ndarray
+            2D array containing coordinates for all atoms in solvate
+        elements : array
+            Array containing the element symbols
+        """
+
         hydCoords, hydElements = AtomCreator.add_hydroxyl(self.hydCoords, 
                                                           self.hydVectors, 
                                                           self.theta)

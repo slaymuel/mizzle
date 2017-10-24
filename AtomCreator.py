@@ -48,14 +48,13 @@ def align(vec1, vec2):
         Rotational matrix which performs the rotation
     """
     I = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
-    crossProd = np.cross(vec1, vec2)    #sine
-    dotProd = np.dot(vec1, vec2)    #cosine
+    crossProd = np.cross(vec1, vec2)
+    dotProd = np.dot(vec1, vec2)
 
-    # Edge cases: If vectors are parallell (cos(x)=0)
-    if(dotProd < 1.01 and dotProd > 0.99):
+    if(dotProd < 1.01 and dotProd > 0.99): # Parallell vectors
         rotMatrix = I
-    # Vectors are anti-parallell
-    elif(dotProd < -0.99 and dotProd > -1.01):
+
+    elif(dotProd < -0.99 and dotProd > -1.01): # Anti parallell vectors
         #mag = np.sqrt(crossProd[0]**2 + crossProd[1]**2 + crossProd[2]**2)
         #ortVec = crossProd/mag
 
@@ -95,7 +94,6 @@ def add_oxygen(coords, vectors):
     elements = []
 
     i=0
-    #Loop over all coordinates where oxygen is to be placed
     while i < len(coords):
         O = np.array([0, 0, 0])
 
@@ -132,8 +130,8 @@ def add_hydroxyl(coords, vectors, theta):
 
     atoms = np.empty([0, 3], dtype=float)
     elements = []
+
     i=0
-    #Loop over all coordinates where oxygen is to be placed
     while i < len(coords):
         O = np.array([0, 0, 0])
         H = np.array([np.sin(theta/2), 0, np.cos(theta/2)])
@@ -189,8 +187,8 @@ def add_water(coords, vectors, theta):
     """
     atoms = np.empty([0, 3], dtype=float)
     elements = []
+
     i=0
-    #Loop over all coordinates where oxygen is to be placed
     while i < len(coords):
         O = np.array([0, 0, 0])
         H1 = np.array([np.sin(theta/2), 0, np.cos(theta/2)])
@@ -253,7 +251,7 @@ def add_water(coords, vectors, theta):
 
     return atoms, elements
 
-#Will also respond to hydrogens closer than 2A
+#Will also pick up hydrogens closer than 2A
 def overlap(point1, point2):
     vector = np.array([point2[0] - point1[0], point2[1] - point1[1],\
                                               point2[2] - point1[2]])
