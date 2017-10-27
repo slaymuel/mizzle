@@ -5,7 +5,7 @@ python main.py config.file structure.pdb
 
 Example
 -------
-python main.py config.wet brookite-nanocrystal-small.pdb
+    $ python main.py config.wet brookite-nanocrystal-small.pdb
 
 
 Output:

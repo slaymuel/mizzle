@@ -1,16 +1,43 @@
 #!/usr/bin/env python
 # PYTHON_ARGCOMPLETE_OK
-''' main
-Wrapper for the Wetter module which performs the actual algorithm.
+"""Wrapper for the Wetter module which performs the actual algorithm.
 
---------------------------------------
-Example:
+Example
+-------
+Usage::
 
+    $ ./main.py config.wet TiO2_110.pdb
 
-./main.py config.wet TiO2_110.pdb
---------------------------------------
+Example config file::
 
-'''
+    atom Ti: high coordinated
+    water: 0.5
+    hydroxyl: 0.5
+
+    atom Ti: low coordinated
+        fraction: 1
+    end
+
+Notes
+-----
+It is also possible to directly import the Wetter module.
+
+    Example usage::
+
+        from Wetter import Wetter
+        from radish import Topologizer
+
+        wet = Wetter(args.verbose, newtopol)
+        wet.solvate({'Nmax': Nmax, 'element': element, 'coordination': Nmax - 1,\
+'OH': hydroxylFrac, 'OH2': waterFrac, 'O':0.05})
+        wet.solvate({'Nmax': Nmax, 'element': element, 'coordination': Nmax - 2,\
+'OH': fraction, 'OH2': 0, 'O':0.1})
+        wet.maximize_distance()
+        wet.wet()
+        we.save()
+
+"""
+
 from Wetter import Wetter
 from radish import Topologizer
 import sys

@@ -11,7 +11,6 @@ Welcome to wetter's documentation!
    :caption: Contents:
 
    AtomCreator
-   AtomCreator (copy)
    WetParser
    Wetter
    main

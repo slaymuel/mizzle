@@ -1,14 +1,5 @@
 from __future__ import print_function
-"""pdbExplorer
-
-This module handles formatting of output pdb-file and preparation of
-input pdb-file.
-
-Notes
------
-The append_atoms method appends new atoms to an existing pdb file and
-the remove_lower_coordianted method removes low coordinated atoms from a
-radish.Topologizer instance.
+"""Formatting of output pdb-file and preparation of input pdb-file.
 """
 
 from radish import Topologizer
@@ -178,14 +169,14 @@ def remove_lower_coordinated(topol, Nmax, element, verbose):
         topology = topol.trj.topology.to_dataframe()
 
         # Get low coordinated atoms using radish
-        i = 3
+        i = 3   # Coordination less than or equal to Nmax-3
         while(i <= Nmax):
             try:
                 centerIndices = topol.extract(element,\
                                               environment = {'O': Nmax - i}).\
                                                       index.get_level_values(1)
                 indices.extend(centerIndices)
-
+            # If no indices found Topologizer throws IndexError
             except IndexError:
                 pass
 
@@ -202,6 +193,13 @@ def remove_lower_coordinated(topol, Nmax, element, verbose):
             except IndexError:
                 pass
             i += 1
+
+        # Get uncoordinated atoms
+        topologyIndices = np.array([atom.index for atom in topol.trj.topology.atoms])
+        bondgraphIndices = np.array(topol.bondgraph['i'].unique())
+        mask = np.ones(len(topologyIndices), np.bool)
+        mask[bondgraphIndices] = 0
+        indices.extend(topologyIndices[mask])
 
         if(len(indices) < 1):
             print("All low coordinated atoms removed\n")

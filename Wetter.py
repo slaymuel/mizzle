@@ -1,22 +1,20 @@
 from __future__ import print_function
 
-"""Wetter module
+"""Hydrates metal oxide surfaces
 
 This is the main module that contains the methods for hydration of
 metal oxide surfaces.
 
 Example
 -------
-import Wetter
-wet = Wetter(verbose, radish_instance)
-wet.add_solvate({'Nmax': Nmax, 
-                 'element': element,
-                 'coordination': coordination, 
-                 'OH': hydroxylFrac, 
-                 'OH2': waterFrac, 
-                 'O':0.05})
-wet.optimize()
-wet.wet()
+Using wetter module in existing project::
+
+    import Wetter
+    wet = Wetter(verbose, radish_instance)
+    wet.add_solvate({'Nmax': Nmax, 'element': element,\
+'coordination': coordination, 'OH': hydroxylFrac, 'OH2': waterFrac, 'O':0.05})
+    wet.optimize()
+    wet.wet()
 
 Attributes
 ----------
@@ -40,7 +38,6 @@ Parameters
         O-H bond length in hydroxyl, Default is 1
 """
 
-
 import numpy as np
 import pandas as pd
 from pdbExplorer import append_atoms
@@ -56,6 +53,11 @@ import pyximport; pyximport.install()
 import potential
 import mdtraj as md
 
+if sys.version_info[0] == 2:
+    # workaround for Sphinx autodoc bug
+    import __builtin__
+    def print(*args, **kwargs):
+        __builtin__.print(*args, **kwargs)
 
 class Wetter:
 
@@ -215,6 +217,7 @@ class Wetter:
         neighbourgrap
             neighbourgraph if any atoms found, empty otherwise
         """
+
         try:
             centerIndices = self.topol.extract(center, environment =
                 {'O': coordination}).index.get_level_values(1)
@@ -233,7 +236,7 @@ class Wetter:
 
     def calculate_pair_vectors(self, coordination, O_frac,\
                                OH_frac, OH2_frac, center):
-        """Calculate coordinates and directional vectors
+        """Calculate coordinates for solvate on for 4-coordinated atoms
 
         Notes
         -----
@@ -349,7 +352,11 @@ class Wetter:
 
     def calculate_vectors(self, coordination, O_frac,\
                           OH_frac, OH2_frac, center):
-        """ See Wetter.calculate_pair_vectors
+        """ Calculate coordinates for solvate on for 5-coordinated atoms
+
+            Notes
+            -----
+            See calculate_pair_vectors
         """
 
         vectors = np.empty([0, 3], dtype=float)
@@ -407,24 +414,24 @@ class Wetter:
 
 
     def solvate(self,params):
-        """Solvate
+        """Calculates coordinates of solvate for specified metal center type
 
         Parameters
         ----------
-        params : dict
-            dict with keys:
-                element : string
-                    Element symbol
-                coordination : int
-                    coordination number of element
-                OH_frac : float
-                    fraction of element atoms that should be hydrated with
-                    hydroxyl.
-                OH2_frac : float
-                    fraction of element atoms that should be hydrated with
-                    water.
-                Nmax : int
-                    Maximum coordination number
+        params : dict with keys
+        element : string
+            Element symbol
+        coordination : int
+            coordination number of element
+        OH_frac : float
+            fraction of element atoms that should be hydrated with
+            hydroxyl.
+        OH2_frac : float
+            fraction of element atoms that should be hydrated with
+            water.
+        Nmax : int
+            Maximum coordination number
+
         Returns
         -------
         vectors : ndarray(float)

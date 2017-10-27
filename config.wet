@@ -7,10 +7,10 @@
 # Usage
 atom Ti: high coordinated
     water: 0.5
-    hydroxyl: 0.2
+    hydroxyl: 0.5
 
 atom Ti: low coordinated
-    fraction: 0.5
+    fraction: 1
 
 end
 

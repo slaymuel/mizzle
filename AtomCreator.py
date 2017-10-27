@@ -1,8 +1,4 @@
-"""AtomCreator
-
-Creates and rotates solvate molecules according to directional vectors and
-user input
-
+"""Creates and alignes solvate coordinates to metal centers
 """
 
 from pyquaternion import Quaternion
