@@ -41,7 +41,7 @@ def append_atoms(file, coords=[], elements = []):
         # Variables for the .pdb format
         residueName = 'SOL'
         chainIdentifier = 'A'
-        residueSequenceNumber = '1'
+        residueSequenceNumber = '2'
         occupancy = '1.00'
         temperatureFactor = '0.00'
 

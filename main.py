@@ -49,6 +49,7 @@ from pdbExplorer import remove_lower_coordinated
 from pdbExplorer import append_atoms
 from shutil import copyfile
 from timeit import default_timer as timer
+import numpy as np
 
 class CustomFormatter(argparse.ArgumentDefaultsHelpFormatter,
                       argparse.RawDescriptionHelpFormatter):
@@ -92,6 +93,16 @@ def main(argv=None):
 
     topol = Topologizer.from_coords(args.files[0])
 
+    f = open(args.files[0], "r")
+    content = f.readlines()
+    f.close()
+
+    for line in content:
+        if('CRYST1' in line):
+            tempBoxVectors = line
+            boxVectors = np.array(tempBoxVectors.split()[1:4], dtype=float)
+            break
+
     atoms = parse('config.wet')	#Call WetParser to parse config file
 
     element = atoms[0].get('element', None) #Get element from config.wet
@@ -119,7 +130,7 @@ def main(argv=None):
 
     ### RUN ALGORITHM ###
 
-    wet = Wetter(args.verbose, newtopol)	#Create Wetter object
+    wet = Wetter(args.verbose, newtopol, boxVectors)	#Create Wetter object
     wet.solvate({'Nmax': Nmax, 'element': element, 'coordination': Nmax - 1,\
                  'OH': hydroxylFrac, 'OH2': waterFrac, 'O':0.05})
     wet.solvate({'Nmax': Nmax, 'element': element, 'coordination': Nmax - 2,\
