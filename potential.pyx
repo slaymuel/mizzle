@@ -58,8 +58,7 @@ def potential_c(np.ndarray[np.float64_t, ndim=1] solvateCoords,
                 np.ndarray[ITYPE_t, ndim=1] centers, 
                 object topol,
                 np.ndarray[np.float64_t, ndim=2] centerNeighbours,
-                np.ndarray[ITYPE_t, ndim=1] centerNumNeighbours,
-                np.ndarray[np.float64_t, ndim=1] boxVectors):
+                np.ndarray[ITYPE_t, ndim=1] centerNumNeighbours):
 
     """Potential function
 
@@ -89,7 +88,7 @@ def potential_c(np.ndarray[np.float64_t, ndim=1] solvateCoords,
     cdef int k = 0
     cdef int d = 0
     cdef double sumPot = 0
-    boxVectors = boxVectors*10
+
     #Does not drop duplicates(which is a good thing)
     cdef np.ndarray[np.float32_t, ndim=2] centersXYZ =\
                                  topol.trj.xyz[0][centers]*10
@@ -107,18 +106,7 @@ def potential_c(np.ndarray[np.float64_t, ndim=1] solvateCoords,
         # Solvate-neighbours pair-potential
         for d in range(centerNumNeighbours[r]):
             tempNeighbour = centerNeighbours[k]
-            if(tempNeighbour[0] - solvateCoords[r*3] > boxVectors[0]/2):
-                tempNeighbour[0] = tempNeighbour[0] - boxVectors[0]
-            elif(tempNeighbour[0] - solvateCoords[r*3] <= -boxVectors[0]/2):
-                tempNeighbour[0] = tempNeighbour[0] + boxVectors[0]
-            if(tempNeighbour[1] - solvateCoords[r*3+1] > boxVectors[1]/2):
-                tempNeighbour[1] = tempNeighbour[1] - boxVectors[1]
-            elif(tempNeighbour[1] - solvateCoords[r*3+1] <= -boxVectors[1]/2):
-                tempNeighbour[1] = tempNeighbour[1] + boxVectors[1]
-            if(tempNeighbour[2] - solvateCoords[r*3+2] > boxVectors[2]/2):
-                tempNeighbour[2] = tempNeighbour[2] - boxVectors[2]
-            elif(tempNeighbour[2] - solvateCoords[r*3+2] <= -boxVectors[2]/2):
-                tempNeighbour[2] = tempNeighbour[2] + boxVectors[2]
+
             distance = ((solvateCoords[r*3] - tempNeighbour[0])**2 +\
                         (solvateCoords[r*3+1] - tempNeighbour[1])**2 +\
                         (solvateCoords[r*3+2] -\
@@ -133,19 +121,6 @@ def potential_c(np.ndarray[np.float64_t, ndim=1] solvateCoords,
                 tempNeighbour[0] = solvateCoords[u*3]
                 tempNeighbour[1] = solvateCoords[u*3+1]
                 tempNeighbour[2] = solvateCoords[u*3+2]
-
-                if(tempNeighbour[0] - solvateCoords[r*3] > boxVectors[0]/2):
-                    tempNeighbour[0] = tempNeighbour[0] - boxVectors[0]
-                elif(tempNeighbour[0] - solvateCoords[r*3] <= -boxVectors[0]/2):
-                    tempNeighbour[0] = tempNeighbour[0] + boxVectors[0]
-                if(tempNeighbour[1] - solvateCoords[r*3+1] > boxVectors[1]/2):
-                    tempNeighbour[1] = tempNeighbour[1] - boxVectors[1]
-                elif(tempNeighbour[1] - solvateCoords[r*3+1] <= -boxVectors[1]/2):
-                    tempNeighbour[1] = tempNeighbour[1] + boxVectors[1]
-                if(tempNeighbour[2] - solvateCoords[r*3+2] > boxVectors[2]/2):
-                    tempNeighbour[2] = tempNeighbour[2] - boxVectors[2]
-                elif(tempNeighbour[2] - solvateCoords[r*3+2] <= -boxVectors[2]/2):
-                    tempNeighbour[2] = tempNeighbour[2] + boxVectors[2]
 
                 distance = ((solvateCoords[r*3] - tempNeighbour[0])**2 +\
                             (solvateCoords[r*3+1] - tempNeighbour[1])**2 +\
@@ -162,8 +137,7 @@ def potential_c_jac(np.ndarray[np.float64_t, ndim=1] solvateCoords,
                 np.ndarray[ITYPE_t, ndim=1] centers, 
                 object topol,
                 np.ndarray[np.float64_t, ndim=2] centerNeighbours,
-                np.ndarray[ITYPE_t, ndim=1] centerNumNeighbours,
-                np.ndarray[np.float64_t, ndim=1] boxVectors):
+                np.ndarray[ITYPE_t, ndim=1] centerNumNeighbours):
 
     """Jacobian of potential
 
@@ -187,7 +161,7 @@ def potential_c_jac(np.ndarray[np.float64_t, ndim=1] solvateCoords,
     cdef np.ndarray[np.float64_t, ndim=1] jac = np.empty(solvateLen*3, dtype=np.float64)
     cdef tempNeighbour = np.array([0, 0, 0], dtype=float)
     centersXYZ = topol.trj.xyz[0][centers]*10
-    boxVectors = boxVectors*10
+
     for i in range(solvateLen):
         # Harmonic potential
         denom = ((solvateCoords[3*i] - centersXYZ[i][0])**2 +\
@@ -201,18 +175,7 @@ def potential_c_jac(np.ndarray[np.float64_t, ndim=1] solvateCoords,
         # Solvate - neighbours pair-potential
         for d in range(centerNumNeighbours[i]):
             tempNeighbour = centerNeighbours[k]
-            if(tempNeighbour[0] - solvateCoords[i*3] > boxVectors[0]/2):
-                tempNeighbour[0] = tempNeighbour[0] - boxVectors[0]
-            elif(tempNeighbour[0] - solvateCoords[i*3] <= -boxVectors[0]/2):
-                tempNeighbour[0] = tempNeighbour[0] + boxVectors[0]
-            if(tempNeighbour[1] - solvateCoords[i*3+1] > boxVectors[1]/2):
-                tempNeighbour[1] = tempNeighbour[1] - boxVectors[1]
-            elif(tempNeighbour[1] - solvateCoords[i*3+1] <= -boxVectors[1]/2):
-                tempNeighbour[1] = tempNeighbour[1] + boxVectors[1]
-            if(tempNeighbour[2] - solvateCoords[i*3+2] > boxVectors[2]/2):
-                tempNeighbour[2] = tempNeighbour[2] - boxVectors[2]
-            elif(tempNeighbour[2] - solvateCoords[i*3+2] <= -boxVectors[2]/2):
-                tempNeighbour[2] = tempNeighbour[2] + boxVectors[2]
+
             denom = ((solvateCoords[3*i] - tempNeighbour[0])**2 +\
                      (solvateCoords[3*i+1] - tempNeighbour[1])**2 +\
                      (solvateCoords[3*i+2] - tempNeighbour[2])**2)**3
@@ -229,19 +192,6 @@ def potential_c_jac(np.ndarray[np.float64_t, ndim=1] solvateCoords,
                 tempNeighbour[0] = solvateCoords[j*3]
                 tempNeighbour[1] = solvateCoords[j*3+1]
                 tempNeighbour[2] = solvateCoords[j*3+2]
-
-                if(tempNeighbour[0] - solvateCoords[i*3] > boxVectors[0]/2):
-                    tempNeighbour[0] = tempNeighbour[0] - boxVectors[0]
-                elif(tempNeighbour[0] - solvateCoords[i*3] <= -boxVectors[0]/2):
-                    tempNeighbour[0] = tempNeighbour[0] + boxVectors[0]
-                if(tempNeighbour[1] - solvateCoords[i*3+1] > boxVectors[1]/2):
-                    tempNeighbour[1] = tempNeighbour[1] - boxVectors[1]
-                elif(tempNeighbour[1] - solvateCoords[i*3+1] <= -boxVectors[1]/2):
-                    tempNeighbour[1] = tempNeighbour[1] + boxVectors[1]
-                if(tempNeighbour[2] - solvateCoords[i*3+2] > boxVectors[2]/2):
-                    tempNeighbour[2] = tempNeighbour[2] - boxVectors[2]
-                elif(tempNeighbour[2] - solvateCoords[i*3+2] <= -boxVectors[2]/2):
-                    tempNeighbour[2] = tempNeighbour[2] + boxVectors[2]
 
                 denom = ((solvateCoords[3*i] - tempNeighbour[0])**2 +\
                          (solvateCoords[3*i+1] - tempNeighbour[1])**2 +\

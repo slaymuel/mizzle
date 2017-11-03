@@ -51,6 +51,7 @@ import sys
 from timeit import default_timer as timer
 import pyximport; pyximport.install()
 import potential
+import ghosts
 import mdtraj as md
 
 if sys.version_info[0] == 2:
@@ -152,34 +153,20 @@ class Wetter:
                                              len(neighbours[0])))
             centerNeighbours = np.vstack((centerNeighbours,\
                                     self.topol.trj.xyz[0][neighbours[0]]*10))
-        # i=0
-        # j=0
-        # for i in range(len(centers)):
-        #     for j in range(centerNumNeighbours[j]):
-        #         if(centerNeighbours[j][0] - self.topol.trj.xyz[0][centers[i]][0] > self.boxVectors[0]/2):
-        #             centerNeighbours[j][0] = centerNeighbours[j][0] - self.boxVectors[0]
-        #         elif(centerNeighbours[j][0] - self.topol.trj.xyz[0][centers[i]][0] <= -self.boxVectors[0]/2):
-        #             centerNeighbours[j][0] = centerNeighbours[j][0] + self.boxVectors[0]
-        #         if(centerNeighbours[j][1] - self.topol.trj.xyz[0][centers[i]][1] > self.boxVectors[1]/2):
-        #             centerNeighbours[j][1] = centerNeighbours[j][1] - self.boxVectors[1]
-        #         elif(centerNeighbours[j][1] - self.topol.trj.xyz[0][centers[i]][1] <= -self.boxVectors[1]/2):
-        #             centerNeighbours[j][1] = centerNeighbours[j][1] + self.boxVectors[1]
-        #         if(centerNeighbours[j][2] - self.topol.trj.xyz[0][centers[i]][2] > self.boxVectors[2]/2):
-        #             centerNeighbours[j][2] = centerNeighbours[j][2] - self.boxVectors[2]
-        #         elif(centerNeighbours[j][2] - self.topol.trj.xyz[0][centers[i]][2] <= -self.boxVectors[2]/2):
-        #             centerNeighbours[j][2] = centerNeighbours[j][2] + self.boxVectors[2]
+        # Get ghost atoms for pbc
+        #centerNeighbours = ghosts.get(self.topol.trj.xyz[0][centers], centerNeighbours, self.boxVectors)
 
         #Print timings if verbose
         start = timer()
         potential.potential_c(coords.flatten(), centers, self.topol,\
-                              centerNeighbours, centerNumNeighbours, self.boxVectors)
+                              centerNeighbours, centerNumNeighbours)
         end = timer()
         self.verboseprint("Potential takes: " + str(end-start) +\
                           " seconds to calculate")
 
         start = timer()
         potential.potential_c_jac(coords.flatten(), centers, self.topol,\
-                                  centerNeighbours, centerNumNeighbours, self.boxVectors)
+                                  centerNeighbours, centerNumNeighbours)
         end = timer()
         self.verboseprint("Potential Jacobian takes: " + str(end-start) +\
               " seconds to calculate\n")
@@ -190,12 +177,12 @@ class Wetter:
         # Run minimization
         res = minimize(potential.potential_c, coords,
                         args = (centers, self.topol, centerNeighbours,\
-                                centerNumNeighbours, self.boxVectors),
+                                centerNumNeighbours),
                         jac = potential.potential_c_jac,
                         method = 'L-BFGS-B',
-                        options={'disp': False, 'gtol': 1e-06, 'iprint': 0,\
-                                 'eps': 1.4901161193847656e-04,\
-                                 'maxiter': 3000})
+                        options={'disp': False, 'gtol': 1e-05, 'iprint': 0,\
+                                 'eps': 1.4901161193847656e-05,\
+                                 'maxiter': 1000})
 
         if(res.success):
             print ("\nSuccessfully minimized potential!\n")
@@ -376,6 +363,7 @@ class Wetter:
 
         vectors = np.empty([0, 3], dtype=float)
         coords = np.empty([0, 3], dtype=float)
+        
         vec = np.array([0,0,0])
         tempNeighbour = np.array([0,0,0])
         #Get indices for metal centers with coordination Nmax - 1
@@ -397,28 +385,13 @@ class Wetter:
             #Calculate M-O vectors
             for center in indices:
                 vec = [0, 0, 0]
-                for neighbour in neighbourgraph[center]:
-                    tempNeighbour = self.topol.trj.xyz[0][neighbour]
-                    #Periodic boundary conditions
-                    if(self.topol.trj.xyz[0][neighbour][0] -\
-                       self.topol.trj.xyz[0][center][0] > self.boxVectors[0]/2):
-                        tempNeighbour[0] = self.topol.trj.xyz[0][neighbour][0] - self.boxVectors[0]
-                    elif(self.topol.trj.xyz[0][neighbour][0] -\
-                       self.topol.trj.xyz[0][center][0] <= -self.boxVectors[0]/2):
-                        tempNeighbour[0] = self.topol.trj.xyz[0][neighbour][0] + self.boxVectors[0]
-                    if(self.topol.trj.xyz[0][neighbour][1] -\
-                       self.topol.trj.xyz[0][center][1] > self.boxVectors[1]/2):
-                        tempNeighbour[1] = self.topol.trj.xyz[0][neighbour][1] - self.boxVectors[1]
-                    elif(self.topol.trj.xyz[0][neighbour][1] -\
-                       self.topol.trj.xyz[0][center][1] <= -self.boxVectors[1]/2):
-                        tempNeighbour[1] = self.topol.trj.xyz[0][neighbour][1] + self.boxVectors[1]
-                    if(self.topol.trj.xyz[0][neighbour][2] -\
-                       self.topol.trj.xyz[0][center][2] > self.boxVectors[2]/2):
-                        tempNeighbour[2] = self.topol.trj.xyz[0][neighbour][2] - self.boxVectors[2]
-                    elif(self.topol.trj.xyz[0][neighbour][2] -\
-                       self.topol.trj.xyz[0][center][2] <= -self.boxVectors[2]/2):
-                        tempNeighbour[2] = self.topol.trj.xyz[0][neighbour][2] + self.boxVectors[2]
-
+                centers = np.empty([0, 3])
+                centers = np.vstack((centers, self.topol.trj.xyz[0][center]))
+                neighbours = ghosts.get(centers, self.topol.trj.xyz[0][neighbourgraph[center]], self.boxVectors)
+                #for neighbour in neighbourgraph[center]:
+                for neighbour in neighbours:
+                    #tempNeighbour = self.topol.trj.xyz[0][neighbour]
+                    tempNeighbour = neighbour
                     tempVec = self.topol.trj.xyz[0][center] -\
                               tempNeighbour
                     tempVec = tempVec/np.linalg.norm(tempVec) # M-O vector

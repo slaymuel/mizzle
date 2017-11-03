@@ -102,7 +102,8 @@ def main(argv=None):
             tempBoxVectors = line
             boxVectors = np.array(tempBoxVectors.split()[1:4], dtype=float)
             break
-
+    print(boxVectors)
+    
     atoms = parse('config.wet')	#Call WetParser to parse config file
 
     element = atoms[0].get('element', None) #Get element from config.wet
