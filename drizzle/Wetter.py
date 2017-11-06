@@ -111,7 +111,7 @@ class Wetter:
         self.verboseprint = print if verbose else lambda *a, **k: None
 
 
-    def optimize(self, coords, centers):
+    def optimizer(self, coords, centers):
         """Set up for minimization scheme for the L-BFGS-B algorithm
 
         Parameters
@@ -522,12 +522,12 @@ class Wetter:
         return vectors, coords, centers
 
 
-    def maximize_distance(self):
+    def optimize(self):
         """Maximize distance between solvate and it's neighbours
 
         Notes
         -------
-        Collects all coordinates and calls optimize()
+        Collects all coordinates and calls optimizer()
         """
 
         vectors = np.empty([0, 3], dtype=float)
@@ -541,7 +541,7 @@ class Wetter:
         centers = np.hstack((centers, self.hydCenters.astype(int)))
         centers = np.hstack((centers, self.watCenters.astype(int)))
 
-        coords, vectors = self.optimize(coords, centers)
+        coords, vectors = self.optimizer(coords, centers)
 
         #Set attributes to optimized values
         self.hydCoords = coords[:len(self.hydCoords)]

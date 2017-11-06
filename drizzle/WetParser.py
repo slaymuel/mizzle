@@ -1,4 +1,12 @@
+"""Parses Wetter config file and finds Nmax
+
+"""
+
 def parse(file):
+    """Parses config file
+    
+    """
+
     f = open(file, 'r')
     content = f.readlines()
     f.close()
@@ -37,6 +45,10 @@ def parse(file):
     return atoms
 
 def get_max_coordination(element):
+    """Finds bulk coordination in MaxCoordinations.data
+
+    """
+
     foundMax = False
     f = open("drizzle/MaxCoordinations.data")
     content = f.readlines()

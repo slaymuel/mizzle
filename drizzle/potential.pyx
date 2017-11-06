@@ -1,4 +1,4 @@
-"""Example NumPy style docstrings.
+"""Cython module with objective function
 
 This Cython module contains the objective function and the Jacobian
 
@@ -64,7 +64,7 @@ def potential_c(np.ndarray[np.float64_t, ndim=1] solvateCoords,
     #Does not drop duplicates(which is a good thing)
     cdef np.ndarray[np.float32_t, ndim=2] centersXYZ =\
                                  topol.trj.xyz[0][centers]*10
-    cdef tempNeighbour = np.array([0, 0, 0], dtype=float)
+    cdef np.ndarray[dtype=double, ndim=1] tempNeighbour
     cdef double distance = 0
     cdef int solvateLen = len(solvateCoords)/3
 
@@ -145,7 +145,7 @@ def potential_c_jac(np.ndarray[np.float64_t, ndim=1] solvateCoords,
     cdef double denom = 0
     cdef int solvateLen = len(solvateCoords)/3
     cdef np.ndarray[np.float64_t, ndim=1] jac = np.empty(solvateLen*3, dtype=np.float64)
-    cdef tempNeighbour = np.array([0, 0, 0], dtype=float)
+    cdef np.ndarray[dtype=double, ndim=1] tempNeighbour
     centersXYZ = topol.trj.xyz[0][centers]*10
 
     for i in range(solvateLen):
