@@ -67,12 +67,12 @@ def main(argv=None):
     argparser.add_argument("-v", "--verbose", action="store_true",
                             help="Be loud and noisy")
 
-    argparser.add_argument("Config file (default: config.wet)", nargs="+",\
-                           default="config.wet", metavar="conf",\
+    argparser.add_argument("-c", "--conf",
                            help="Config file")
-
-    argparser.add_argument("files", nargs="+", metavar="pdb",\
-                           help="Input structure file in pdb format")
+    argparser.add_argument("-f", "--pdb_file",
+                           help="PDB file")
+    # argparser.add_argument("files", nargs="+", metavar="pdb",\
+    #                        help="Input structure file in pdb format")
 
     # Parse arguments
     argcomplete.autocomplete(argparser)
@@ -81,19 +81,20 @@ def main(argv=None):
     # Run program
     print "Are we loud and noisy? " + str(args.verbose)
     print "The file list is:"
-    print "\"" + " ".join(args.files) + "\"" 
+    #print "\"" + " ".join(args.files) + "\"" 
     
     ## PREPARE INPUT ##
 
     #Copy pdb input file to inputfile_wet.pdb
-    fileWet = args.files[0].rsplit('.', 1)[0]
-    fileExt = args.files[0].rsplit('.', 1)[1]
+    #fileWet = args.files[0].rsplit('.', 1)[0]
+    fileWet = args.pdb_file.rsplit('.', 1)[0]
+    fileExt = args.pdb_file.rsplit('.', 1)[1]
     fileWet = fileWet + "_wet." + fileExt
-    copyfile(args.files[0], fileWet)
+    copyfile(args.pdb_file, fileWet)
 
-    topol = Topologizer.from_coords(args.files[0])
+    topol = Topologizer.from_coords(args.pdb_file)
 
-    f = open(args.files[0], "r")
+    f = open(args.pdb_file, "r")
     content = f.readlines()
     f.close()
 
@@ -102,9 +103,8 @@ def main(argv=None):
             tempBoxVectors = line
             boxVectors = np.array(tempBoxVectors.split()[1:4], dtype=float)
             break
-    print(boxVectors)
-    
-    atoms = parse('config.wet')	#Call WetParser to parse config file
+
+    atoms = parse(args.conf)	#Call WetParser to parse config file
 
     element = atoms[0].get('element', None) #Get element from config.wet
     waterFrac = None

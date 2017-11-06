@@ -86,7 +86,7 @@ class Wetter:
         self.lowFrac = 1
         self.highWaterFrac = 1
         self.highHydroxylFrac = 1
-        self.boxVectors = boxVectors/10
+        self.boxVectors = boxVectors
 
         #Use radish (RAD-algorithm) to compute the coordination of each atom
         self.topol = topol
@@ -164,14 +164,14 @@ class Wetter:
         #Print timings if verbose
         start = timer()
         potential.potential_c(coords.flatten(), centers, self.topol,\
-                              centerNeighbours, centerNumNeighbours)
+                              centerNeighbours, centerNumNeighbours, self.boxVectors)
         end = timer()
         self.verboseprint("Potential takes: " + str(end-start) +\
                           " seconds to calculate")
 
         start = timer()
         potential.potential_c_jac(coords.flatten(), centers, self.topol,\
-                                  centerNeighbours, centerNumNeighbours)
+                                  centerNeighbours, centerNumNeighbours, self.boxVectors)
         end = timer()
         self.verboseprint("Potential Jacobian takes: " + str(end-start) +\
               " seconds to calculate\n")
@@ -182,7 +182,7 @@ class Wetter:
         # Run minimization
         res = minimize(potential.potential_c, coords,
                         args = (centers, self.topol, centerNeighbours,\
-                                centerNumNeighbours),
+                                centerNumNeighbours, self.boxVectors),
                         jac = potential.potential_c_jac,
                         method = 'L-BFGS-B',
                         options={'disp': False, 'gtol': 1e-05, 'iprint': 0,\
@@ -393,7 +393,6 @@ class Wetter:
             for center in indices:
                 vec = [0, 0, 0]
 
-                
                 neighbours = np.array(neighbourgraph[center])
                 centerArray = np.repeat(center, len(neighbours))
                 dispArray = np.vstack((neighbours, centerArray))
