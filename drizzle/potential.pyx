@@ -20,8 +20,10 @@ FTYPE = np.float32
 ITYPE = np.int_
 ctypedef np.float_t FTYPE_t
 ctypedef np.int_t ITYPE_t
-
-#@cython.boundscheck(False)
+@cython.cdivision(True)
+@cython.boundscheck(False)
+#@cython.wraparound(False)
+#@cython.nonecheck(False)
 
 def potential_c(np.ndarray[np.float64_t, ndim=1] solvateCoords, 
                 np.ndarray[ITYPE_t, ndim=1] centers, 
@@ -64,7 +66,7 @@ def potential_c(np.ndarray[np.float64_t, ndim=1] solvateCoords,
     #Does not drop duplicates(which is a good thing)
     cdef np.ndarray[np.float32_t, ndim=2] centersXYZ =\
                                  topol.trj.xyz[0][centers]*10
-    cdef np.ndarray[dtype=double, ndim=1] tempNeighbour
+    cdef np.ndarray[dtype=double, ndim=1] tempNeighbour = np.empty([0], dtype=np.float64)
     cdef double distance = 0
     cdef int solvateLen = len(solvateCoords)/3
 
@@ -117,7 +119,8 @@ def potential_c(np.ndarray[np.float64_t, ndim=1] solvateCoords,
         i += 1
     return sumPot
 
-
+@cython.cdivision(True)
+@cython.boundscheck(False)
 def potential_c_jac(np.ndarray[np.float64_t, ndim=1] solvateCoords, 
                 np.ndarray[ITYPE_t, ndim=1] centers, 
                 object topol,
@@ -135,6 +138,7 @@ def potential_c_jac(np.ndarray[np.float64_t, ndim=1] solvateCoords,
     -------
     jac
         Jacobian of potential.potential_c
+
     """
 
     cdef int i = 0
@@ -145,7 +149,7 @@ def potential_c_jac(np.ndarray[np.float64_t, ndim=1] solvateCoords,
     cdef double denom = 0
     cdef int solvateLen = len(solvateCoords)/3
     cdef np.ndarray[np.float64_t, ndim=1] jac = np.empty(solvateLen*3, dtype=np.float64)
-    cdef np.ndarray[dtype=double, ndim=1] tempNeighbour
+    cdef np.ndarray[dtype=double, ndim=1] tempNeighbour = np.empty([0], dtype=np.float64)
     centersXYZ = topol.trj.xyz[0][centers]*10
 
     for i in range(solvateLen):

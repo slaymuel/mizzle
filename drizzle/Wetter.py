@@ -66,6 +66,7 @@ import potential
 import ghosts
 from pdbExplorer import append_atoms
 import AtomCreator
+from overlap import shortest_distance
 
 if sys.version_info[0] == 2:
     # workaround for Sphinx autodoc bug
@@ -573,23 +574,7 @@ class Wetter:
         elements = np.concatenate((watElements, hydElements))
         self.coords = coords
         self.elements = elements
-        minODist, minHDist = self.overlap(coords, elements)
+        minODist, minHDist = shortest_distance(coords, elements)
         self.verboseprint("Shortest O-O distance in solvent: " + str(minODist) + " Angstrom.")
         self.verboseprint("Shortest H-H distance in solvent: " + str(minHDist) + " Angstrom.\n")
         return coords, elements
-    
-    def overlap(self, coords, elements):
-        i = 0
-        j = 0
-        minODist = 9999.999
-        minHDist = 9999.999
-        while i < len(coords):
-            j = i + 1
-            while j < len(coords):
-                if(np.linalg.norm(coords[j]-coords[i]) < minODist and elements[i] == 'O' and elements[j] == 'O'):
-                    minODist = np.linalg.norm(coords[j]-coords[i])
-                if(np.linalg.norm(coords[j]-coords[i]) < minHDist and elements[i] == 'H' and elements[j] == 'H'):
-                    minHDist = np.linalg.norm(coords[j]-coords[i])
-                j += 1
-            i += 1
-        return minODist, minHDist
