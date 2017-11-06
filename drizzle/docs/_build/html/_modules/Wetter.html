@@ -1,0 +1,701 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Wetter &#8212; drizzle 1.0 documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for Wetter</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Hydrates metal oxide surfaces</span>
+
+<span class="sd">This is the main module that contains the methods for hydration of</span>
+<span class="sd">metal oxide surfaces.</span>
+
+<span class="sd">Example</span>
+<span class="sd">-------</span>
+<span class="sd">Using wetter module in existing project::</span>
+
+<span class="sd">    import Wetter</span>
+<span class="sd">    wet = Wetter(verbose, radish_instance)</span>
+<span class="sd">    wet.add_solvate({&#39;Nmax&#39;: Nmax, &#39;element&#39;: element,\</span>
+<span class="sd">&#39;coordination&#39;: coordination, &#39;OH&#39;: hydroxylFrac, &#39;OH2&#39;: waterFrac, &#39;O&#39;:0.05})</span>
+<span class="sd">    wet.optimize()</span>
+<span class="sd">    wet.wet()</span>
+
+<span class="sd">Attributes</span>
+<span class="sd">----------</span>
+<span class="sd">    hydVectors : ndarray</span>
+<span class="sd">        Array that holds directional vectors for hydroxyl molecules.</span>
+<span class="sd">    hydCoords</span>
+<span class="sd">        Array that holds oxygen coordinates for hydroxyl molecules.</span>
+<span class="sd">    hydCenters</span>
+<span class="sd">        Array that holds the corresponding metal atom for each </span>
+<span class="sd">        hydroxyl molecule.</span>
+<span class="sd">    watVectors : ndarray</span>
+<span class="sd">        see hydVectors</span>
+<span class="sd">    watCoords</span>
+<span class="sd">        see hydCoords</span>
+<span class="sd">    watCenters</span>
+<span class="sd">        see hydCenters</span>
+<span class="sd">    oxyVectors : ndarray</span>
+<span class="sd">        see hydVectors</span>
+<span class="sd">    oxyCoords</span>
+<span class="sd">        hydCoords</span>
+<span class="sd">    oxyCenters</span>
+<span class="sd">        see hydCenters</span>
+
+<span class="sd">Parameters</span>
+<span class="sd">----------</span>
+<span class="sd">    theta : double, optional</span>
+<span class="sd">        HOH bond angle. Default is 104.5.</span>
+<span class="sd">    MOBondlength : double, optional</span>
+<span class="sd">        M-O bond length. Default is 2.2</span>
+<span class="sd">    HOHBondlength : double, optional</span>
+<span class="sd">        H-O bond length in water. Default is 1</span>
+<span class="sd">    OHBondlength : double, optional</span>
+<span class="sd">        O-H bond length in hydroxyl, Default is 1</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">print_function</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">from</span> <span class="nn">pyquaternion</span> <span class="k">import</span> <span class="n">Quaternion</span>
+<span class="kn">from</span> <span class="nn">radish</span> <span class="k">import</span> <span class="n">Topologizer</span>
+<span class="kn">from</span> <span class="nn">tqdm</span> <span class="k">import</span> <span class="n">tqdm</span>
+<span class="kn">from</span> <span class="nn">scipy.optimize</span> <span class="k">import</span> <span class="n">minimize</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">from</span> <span class="nn">timeit</span> <span class="k">import</span> <span class="n">default_timer</span> <span class="k">as</span> <span class="n">timer</span>
+<span class="kn">import</span> <span class="nn">pyximport</span><span class="p">;</span> <span class="n">pyximport</span><span class="o">.</span><span class="n">install</span><span class="p">()</span>
+<span class="kn">import</span> <span class="nn">mdtraj</span> <span class="k">as</span> <span class="nn">md</span>
+
+<span class="c1">#&#39;Name of program&#39; imports</span>
+<span class="kn">import</span> <span class="nn">potential</span>
+<span class="kn">import</span> <span class="nn">ghosts</span>
+<span class="kn">from</span> <span class="nn">pdbExplorer</span> <span class="k">import</span> <span class="n">append_atoms</span>
+<span class="kn">import</span> <span class="nn">AtomCreator</span>
+
+<span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">version_info</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+    <span class="c1"># workaround for Sphinx autodoc bug</span>
+    <span class="kn">import</span> <span class="nn">__builtin__</span>
+<div class="viewcode-block" id="print"><a class="viewcode-back" href="../Wetter.html#Wetter.print">[docs]</a>    <span class="k">def</span> <span class="nf">print</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">__builtin__</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Wetter"><a class="viewcode-back" href="../Wetter.html#Wetter.Wetter">[docs]</a><span class="k">class</span> <span class="nc">Wetter</span><span class="p">:</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">verbose</span><span class="p">,</span> <span class="n">topol</span><span class="p">,</span> <span class="n">boxVectors</span><span class="p">,</span><span class="n">theta</span><span class="o">=</span><span class="mf">104.5</span><span class="p">,</span> <span class="n">MOBondlength</span><span class="o">=</span><span class="mf">2.2</span><span class="p">,</span>\
+                 <span class="n">HOHBondlength</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">OHBondlength</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">hydVectors</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hydCoords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hydCenters</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">watVectors</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">watCoords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">watCenters</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">oxyVectors</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">oxyCoords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">oxyCenters</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+
+        <span class="c1">#Input parameters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">theta</span> <span class="o">=</span> <span class="n">theta</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">MOBondlength</span> <span class="o">=</span> <span class="n">MOBondlength</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">HOHBondlength</span> <span class="o">=</span> <span class="n">HOHBondlength</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">OHBondlength</span> <span class="o">=</span> <span class="n">OHBondlength</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">theta</span> <span class="o">=</span> <span class="n">theta</span><span class="o">/</span><span class="mi">360</span><span class="o">*</span><span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lowFrac</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">highWaterFrac</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">highHydroxylFrac</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">boxVectors</span> <span class="o">=</span> <span class="n">boxVectors</span>
+
+        <span class="c1">#Use radish (RAD-algorithm) to compute the coordination of each atom</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">topol</span> <span class="o">=</span> <span class="n">topol</span>
+
+        <span class="c1">#Format float precision(will remove from here later maybe....)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">float_format</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="s2">&quot;</span><span class="si">%.3f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">x</span>
+
+        <span class="c1">#Set up verbose print function</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">verboseprint</span> <span class="o">=</span> <span class="nb">print</span> <span class="k">if</span> <span class="n">verbose</span> <span class="k">else</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">a</span><span class="p">,</span> <span class="o">**</span><span class="n">k</span><span class="p">:</span> <span class="kc">None</span>
+
+
+<div class="viewcode-block" id="Wetter.optimize"><a class="viewcode-back" href="../Wetter.html#Wetter.Wetter.optimize">[docs]</a>    <span class="k">def</span> <span class="nf">optimize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">centers</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set up for minimization scheme for the L-BFGS-B algorithm</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        coords : 3*N array(float)</span>
+<span class="sd">            The coordination for which to construct the neighbourgraph and</span>
+<span class="sd">            the indices for all such metal centers</span>
+<span class="sd">        centers : array(int)</span>
+<span class="sd">            Array containing all the centers which has bound each solvate</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            If one or more coordinates are missing centers</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        coords</span>
+<span class="sd">            Optimized oxygen coordinates</span>
+<span class="sd">        vectors</span>
+<span class="sd">            Optimized M-O vectors</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">vectors</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span> <span class="n">dtype</span> <span class="o">=</span> <span class="nb">float</span><span class="p">)</span>
+        <span class="n">cutoff</span> <span class="o">=</span> <span class="mf">6.0</span>
+        <span class="n">M</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">topol</span><span class="o">.</span><span class="n">trj</span><span class="o">.</span><span class="n">xyz</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">centers</span><span class="p">]</span><span class="o">*</span><span class="mi">10</span>
+
+        <span class="k">if</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">M</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">coords</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Optimization failed: some solvate molecules were</span><span class="se">\</span>
+<span class="s2">                              not assigned to a center.&quot;</span><span class="p">)</span>        
+
+        <span class="c1"># Drops duplicates</span>
+        <span class="n">centerCoordination</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">topol</span><span class="o">.</span><span class="n">bondgraph</span><span class="o">.</span>\
+                             <span class="n">loc</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">topol</span><span class="o">.</span><span class="n">bondgraph</span><span class="p">[</span><span class="s1">&#39;j&#39;</span><span class="p">]</span><span class="o">.</span>\
+                             <span class="n">isin</span><span class="p">(</span><span class="n">centers</span><span class="p">)][</span><span class="s1">&#39;j&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">value_counts</span><span class="p">())</span>
+        <span class="n">missing</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">centers</span><span class="p">)</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">centerCoordination</span><span class="p">)</span>
+
+        <span class="c1"># Readd removed duplicates</span>
+        <span class="k">if</span><span class="p">(</span><span class="n">missing</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">):</span>
+            <span class="n">centerCoordination</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">centerCoordination</span><span class="p">,</span>\
+                                           <span class="n">centerCoordination</span><span class="p">[</span>\
+                                           <span class="nb">len</span><span class="p">(</span><span class="n">centerCoordination</span><span class="p">)</span><span class="o">-</span><span class="n">missing</span><span class="p">:])</span>
+
+        <span class="n">centerNeighbours</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span> <span class="n">dtype</span> <span class="o">=</span> <span class="nb">float</span><span class="p">)</span>
+        <span class="n">centerNumNeighbours</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span> <span class="o">=</span> <span class="nb">int</span><span class="p">)</span>
+
+        <span class="c1"># Get neighbours to each center</span>
+        <span class="k">for</span> <span class="n">center</span> <span class="ow">in</span> <span class="n">centers</span><span class="p">:</span>
+            <span class="n">neighbours</span> <span class="o">=</span> <span class="n">md</span><span class="o">.</span><span class="n">compute_neighbors</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">topol</span><span class="o">.</span><span class="n">trj</span><span class="p">,</span> <span class="n">cutoff</span><span class="o">/</span><span class="mf">10.0</span><span class="p">,</span>\
+                                              <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">center</span><span class="p">]))</span>
+
+            <span class="n">centerNumNeighbours</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">((</span><span class="n">centerNumNeighbours</span><span class="p">,</span>\
+                                             <span class="nb">len</span><span class="p">(</span><span class="n">neighbours</span><span class="p">[</span><span class="mi">0</span><span class="p">])))</span>
+            <span class="c1">#centerNeighbours = np.vstack((centerNeighbours,\</span>
+            <span class="c1">#                        self.topol.trj.xyz[0][neighbours[0]]*10))</span>
+
+            <span class="n">centerArray</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">center</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">neighbours</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+            <span class="n">dispArray</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="n">neighbours</span><span class="p">,</span> <span class="n">centerArray</span><span class="p">))</span>
+            <span class="n">dispArray</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">dispArray</span><span class="p">)</span>
+            <span class="n">dispVectors</span> <span class="o">=</span> <span class="n">md</span><span class="o">.</span><span class="n">compute_displacements</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">topol</span><span class="o">.</span><span class="n">trj</span><span class="p">,</span> <span class="n">dispArray</span><span class="p">,</span> <span class="n">periodic</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">centerNeighbours</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="n">centerNeighbours</span><span class="p">,</span> <span class="o">-</span><span class="n">dispVectors</span><span class="o">*</span><span class="mi">10</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">topol</span><span class="o">.</span><span class="n">trj</span><span class="o">.</span><span class="n">xyz</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">center</span><span class="p">]</span><span class="o">*</span><span class="mi">10</span><span class="p">))</span>
+
+        <span class="c1">#Print timings if verbose</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="n">timer</span><span class="p">()</span>
+        <span class="n">potential</span><span class="o">.</span><span class="n">potential_c</span><span class="p">(</span><span class="n">coords</span><span class="o">.</span><span class="n">flatten</span><span class="p">(),</span> <span class="n">centers</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">topol</span><span class="p">,</span>\
+                              <span class="n">centerNeighbours</span><span class="p">,</span> <span class="n">centerNumNeighbours</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">boxVectors</span><span class="p">)</span>
+        <span class="n">end</span> <span class="o">=</span> <span class="n">timer</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">verboseprint</span><span class="p">(</span><span class="s2">&quot;Potential takes: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">end</span><span class="o">-</span><span class="n">start</span><span class="p">)</span> <span class="o">+</span>\
+                          <span class="s2">&quot; seconds to calculate&quot;</span><span class="p">)</span>
+
+        <span class="n">start</span> <span class="o">=</span> <span class="n">timer</span><span class="p">()</span>
+        <span class="n">potential</span><span class="o">.</span><span class="n">potential_c_jac</span><span class="p">(</span><span class="n">coords</span><span class="o">.</span><span class="n">flatten</span><span class="p">(),</span> <span class="n">centers</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">topol</span><span class="p">,</span>\
+                                  <span class="n">centerNeighbours</span><span class="p">,</span> <span class="n">centerNumNeighbours</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">boxVectors</span><span class="p">)</span>
+        <span class="n">end</span> <span class="o">=</span> <span class="n">timer</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">verboseprint</span><span class="p">(</span><span class="s2">&quot;Potential Jacobian takes: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">end</span><span class="o">-</span><span class="n">start</span><span class="p">)</span> <span class="o">+</span>\
+              <span class="s2">&quot; seconds to calculate</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">verboseprint</span><span class="p">(</span><span class="s2">&quot;Minimizing potential with &quot;</span> <span class="o">+</span>\
+                          <span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">coords</span><span class="o">.</span><span class="n">flatten</span><span class="p">()))</span> <span class="o">+</span> <span class="s2">&quot; free variables...&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Run minimization</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">minimize</span><span class="p">(</span><span class="n">potential</span><span class="o">.</span><span class="n">potential_c</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span>
+                        <span class="n">args</span> <span class="o">=</span> <span class="p">(</span><span class="n">centers</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">topol</span><span class="p">,</span> <span class="n">centerNeighbours</span><span class="p">,</span>\
+                                <span class="n">centerNumNeighbours</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">boxVectors</span><span class="p">),</span>
+                        <span class="n">jac</span> <span class="o">=</span> <span class="n">potential</span><span class="o">.</span><span class="n">potential_c_jac</span><span class="p">,</span>
+                        <span class="n">method</span> <span class="o">=</span> <span class="s1">&#39;L-BFGS-B&#39;</span><span class="p">,</span>
+                        <span class="n">options</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;disp&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span> <span class="s1">&#39;gtol&#39;</span><span class="p">:</span> <span class="mf">1e-05</span><span class="p">,</span> <span class="s1">&#39;iprint&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>\
+                                 <span class="s1">&#39;eps&#39;</span><span class="p">:</span> <span class="mf">1.4901161193847656e-05</span><span class="p">,</span>\
+                                 <span class="s1">&#39;maxiter&#39;</span><span class="p">:</span> <span class="mi">1000</span><span class="p">})</span>
+
+        <span class="k">if</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">success</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">verboseprint</span> <span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Successfully minimized potential!</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Optimization failed...</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span><span class="c1"># Since minimization returns flat</span>
+                                           <span class="c1"># array we need to reshape</span>
+
+        <span class="c1"># Recalculate directional vectors</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">coord</span> <span class="ow">in</span> <span class="n">coords</span><span class="p">:</span>
+            <span class="n">vectors</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="n">vectors</span><span class="p">,</span> <span class="p">(</span><span class="n">coord</span><span class="o">-</span><span class="n">M</span><span class="p">[</span><span class="n">i</span><span class="p">])</span><span class="o">/</span>\
+                                 <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">coord</span><span class="o">-</span><span class="n">M</span><span class="p">[</span><span class="n">i</span><span class="p">])))</span>
+            <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="k">return</span> <span class="n">coords</span><span class="p">,</span> <span class="n">vectors</span></div>
+
+
+<div class="viewcode-block" id="Wetter.get_center_neighbours"><a class="viewcode-back" href="../Wetter.html#Wetter.Wetter.get_center_neighbours">[docs]</a>    <span class="k">def</span> <span class="nf">get_center_neighbours</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coordination</span><span class="p">,</span> <span class="n">center</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Construct neighbourgraph where columns are metal centers and rows </span>
+<span class="sd">        their coordination shell</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        coordination : int</span>
+<span class="sd">            The coordination for which to construct the neighbourgraph and</span>
+<span class="sd">            the indices for all such metal centers</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        centerIndices</span>
+<span class="sd">            Indices for all metal centers if there are any, otherwise empty</span>
+<span class="sd">        neighbourgrap</span>
+<span class="sd">            neighbourgraph if any atoms found, empty otherwise</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">centerIndices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">topol</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="n">center</span><span class="p">,</span> <span class="n">environment</span> <span class="o">=</span>
+                <span class="p">{</span><span class="s1">&#39;O&#39;</span><span class="p">:</span> <span class="n">coordination</span><span class="p">})</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">get_level_values</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+            <span class="n">neighbourgraph</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">topol</span><span class="o">.</span><span class="n">bondgraph</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">topol</span><span class="o">.</span>\
+                <span class="n">bondgraph</span><span class="p">[</span><span class="s1">&#39;j&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">centerIndices</span><span class="p">)]</span><span class="o">.</span>\
+                <span class="n">sort_values</span><span class="p">([</span><span class="s1">&#39;j&#39;</span><span class="p">])[[</span><span class="s1">&#39;i&#39;</span><span class="p">,</span> <span class="s1">&#39;j&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">pivot</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span> <span class="s1">&#39;j&#39;</span><span class="p">)</span><span class="o">.</span>\
+                <span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">dropna</span><span class="p">()</span><span class="o">.</span><span class="n">values</span><span class="p">))</span><span class="o">.</span>\
+                <span class="n">apply</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)[</span><span class="s1">&#39;i&#39;</span><span class="p">]</span>
+
+            <span class="k">return</span> <span class="p">(</span><span class="n">centerIndices</span><span class="p">,</span> <span class="n">neighbourgraph</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>  <span class="c1">#If no atoms found, extract() throws IndexError</span>
+            <span class="k">return</span> <span class="p">[],</span> <span class="p">[]</span></div>
+
+
+<div class="viewcode-block" id="Wetter.calculate_pair_vectors"><a class="viewcode-back" href="../Wetter.html#Wetter.Wetter.calculate_pair_vectors">[docs]</a>    <span class="k">def</span> <span class="nf">calculate_pair_vectors</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coordination</span><span class="p">,</span> <span class="n">O_frac</span><span class="p">,</span>\
+                               <span class="n">OH_frac</span><span class="p">,</span> <span class="n">OH2_frac</span><span class="p">,</span> <span class="n">center</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Calculate coordinates for solvate on for 4-coordinated atoms</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        Calculates the sum of vectors from oxygen to 4-coordinated metal</span>
+<span class="sd">        atoms. These vectors are used as first guesses of the positions for</span>
+<span class="sd">        the hydration molecules.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        vectors : ndarray(float)</span>
+<span class="sd">            Directional vectors for each solvate</span>
+<span class="sd">        coord : ndarray(float)</span>
+<span class="sd">            Coordinates for oxygen atom in each solvate</span>
+<span class="sd">        centers : ndarray(int)</span>
+<span class="sd">            List of each center that each solvate belongs to</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">centerIndices</span><span class="p">,</span> <span class="n">neighbourgraph</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_center_neighbours</span><span class="p">(</span>\
+                                            <span class="n">coordination</span><span class="p">,</span> <span class="n">center</span><span class="p">)</span>
+
+        <span class="k">if</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">centerIndices</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">):</span>
+            <span class="n">centers</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">verboseprint</span><span class="p">(</span><span class="s2">&quot;Found &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">centerIndices</span><span class="p">))</span> <span class="o">+</span>\
+                <span class="s2">&quot; centers with Nmax - 2 coordination</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+
+            <span class="n">vectors</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span> <span class="n">dtype</span> <span class="o">=</span> <span class="nb">float</span><span class="p">)</span>
+            <span class="n">coordinates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span> <span class="n">dtype</span> <span class="o">=</span> <span class="nb">float</span><span class="p">)</span>
+
+            <span class="n">randIndices</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">centerIndices</span><span class="p">)),</span>
+                                        <span class="nb">int</span><span class="p">(</span><span class="n">OH_frac</span><span class="o">*</span>\
+                                        <span class="nb">float</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">centerIndices</span><span class="p">))))</span>
+            <span class="n">indices</span> <span class="o">=</span> <span class="n">centerIndices</span><span class="p">[</span><span class="n">randIndices</span><span class="p">]</span>
+
+            <span class="k">for</span> <span class="n">center</span> <span class="ow">in</span> <span class="n">indices</span><span class="p">:</span>
+                <span class="n">points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+                <span class="n">tempVectors</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+                <span class="n">pairVectors</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+                <span class="n">sumVec</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+                <span class="n">points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="n">points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">topol</span><span class="o">.</span><span class="n">trj</span><span class="o">.</span><span class="n">xyz</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">center</span><span class="p">]</span><span class="o">*</span><span class="mi">10</span><span class="p">))</span>
+
+                <span class="n">neighbours</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">neighbourgraph</span><span class="p">[</span><span class="n">center</span><span class="p">])</span>
+                <span class="n">centerArray</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">center</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">neighbours</span><span class="p">))</span>
+                <span class="n">dispArray</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="n">neighbours</span><span class="p">,</span> <span class="n">centerArray</span><span class="p">))</span>
+                <span class="n">dispArray</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">dispArray</span><span class="p">)</span>
+
+                <span class="n">dispVectors</span> <span class="o">=</span> <span class="n">md</span><span class="o">.</span><span class="n">compute_displacements</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">topol</span><span class="o">.</span><span class="n">trj</span><span class="p">,</span> <span class="n">dispArray</span><span class="p">,</span> <span class="n">periodic</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+                <span class="k">for</span> <span class="n">vector</span> <span class="ow">in</span> <span class="n">dispVectors</span><span class="p">:</span>
+                    <span class="n">vector</span> <span class="o">=</span> <span class="n">vector</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">vector</span><span class="p">)</span>
+                    <span class="n">tempVectors</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="n">tempVectors</span><span class="p">,</span> <span class="n">vector</span><span class="p">))</span>
+                    <span class="n">sumVec</span> <span class="o">+=</span> <span class="n">vector</span> <span class="c1"># Sum M-O vectors</span>
+
+                <span class="n">sumVec</span> <span class="o">=</span> <span class="n">sumVec</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">sumVec</span><span class="p">)</span>
+
+                <span class="k">for</span> <span class="n">vector</span> <span class="ow">in</span> <span class="n">tempVectors</span><span class="p">:</span>
+                    <span class="n">tempVector</span> <span class="o">=</span> <span class="n">sumVec</span> <span class="o">-</span> <span class="n">vector</span>
+                    <span class="n">pairVectors</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="n">pairVectors</span><span class="p">,</span> <span class="n">tempVector</span><span class="p">))</span>
+
+                <span class="c1">#Sort vectors with increasing norm</span>
+                <span class="n">pairVectors</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">pairVectors</span><span class="p">,</span> 
+                                    <span class="n">key</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span>\
+                                                            <span class="o">+</span> <span class="n">x</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">))</span>
+
+                <span class="c1"># Choose the two vectors with smallest norm</span>
+                <span class="n">pairVec1</span> <span class="o">=</span> <span class="n">pairVectors</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">pairVectors</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="n">pairVec2</span> <span class="o">=</span> <span class="n">pairVectors</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">pairVectors</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+                <span class="c1"># If there are only 2 neighbours, rotate Pi/2 around</span>
+                <span class="c1"># directional vector to maximize distance to neighbours</span>
+                <span class="k">if</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">tempVectors</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">):</span>
+                    <span class="n">axis</span> <span class="o">=</span> <span class="n">sumVec</span>
+                    <span class="n">angle</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">/</span><span class="mi">2</span>
+                    <span class="n">pairVec1</span> <span class="o">=</span> <span class="n">Quaternion</span><span class="p">(</span><span class="n">axis</span> <span class="o">=</span> <span class="n">axis</span><span class="p">,</span><span class="n">angle</span> <span class="o">=</span> <span class="n">angle</span><span class="p">)</span><span class="o">.</span>\
+                        <span class="n">rotate</span><span class="p">(</span><span class="n">pairVec1</span><span class="p">)</span>
+                    <span class="n">pairVec2</span> <span class="o">=</span> <span class="n">Quaternion</span><span class="p">(</span><span class="n">axis</span> <span class="o">=</span> <span class="n">axis</span><span class="p">,</span><span class="n">angle</span> <span class="o">=</span> <span class="n">angle</span><span class="p">)</span><span class="o">.</span>\
+                        <span class="n">rotate</span><span class="p">(</span><span class="n">pairVec2</span><span class="p">)</span>
+
+                <span class="c1"># Rotate the vectors towards each other</span>
+                <span class="c1"># (away from center of bulk)</span>
+                <span class="n">crossProd</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">pairVec1</span><span class="p">,</span> <span class="n">pairVec2</span><span class="p">)</span>
+                <span class="n">dotProdVec1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">sumVec</span><span class="p">,</span> <span class="n">pairVec1</span><span class="p">)</span>
+                <span class="n">dotProdVec2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">sumVec</span><span class="p">,</span> <span class="n">pairVec2</span><span class="p">)</span>
+                <span class="k">if</span><span class="p">(</span><span class="n">dotProdVec1</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">):</span>
+                    <span class="n">pairVec1</span> <span class="o">=</span> <span class="n">Quaternion</span><span class="p">(</span><span class="n">axis</span> <span class="o">=</span> <span class="n">crossProd</span><span class="p">,</span><span class="n">angle</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">/</span><span class="mi">7</span><span class="p">)</span><span class="o">.</span>\
+                        <span class="n">rotate</span><span class="p">(</span><span class="n">pairVec1</span><span class="p">)</span>
+                    <span class="n">pairVec2</span> <span class="o">=</span> <span class="n">Quaternion</span><span class="p">(</span><span class="n">axis</span> <span class="o">=</span> <span class="n">crossProd</span><span class="p">,</span><span class="n">angle</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">/</span><span class="mi">7</span><span class="p">)</span><span class="o">.</span>\
+                        <span class="n">rotate</span><span class="p">(</span><span class="n">pairVec2</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">pairVec2</span> <span class="o">=</span> <span class="n">Quaternion</span><span class="p">(</span><span class="n">axis</span> <span class="o">=</span> <span class="n">crossProd</span><span class="p">,</span><span class="n">angle</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">/</span><span class="mi">7</span><span class="p">)</span><span class="o">.</span>\
+                        <span class="n">rotate</span><span class="p">(</span><span class="n">pairVec2</span><span class="p">)</span>
+                    <span class="n">pairVec1</span> <span class="o">=</span> <span class="n">Quaternion</span><span class="p">(</span><span class="n">axis</span> <span class="o">=</span> <span class="n">crossProd</span><span class="p">,</span><span class="n">angle</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">/</span><span class="mi">7</span><span class="p">)</span><span class="o">.</span>\
+                        <span class="n">rotate</span><span class="p">(</span><span class="n">pairVec1</span><span class="p">)</span>
+
+                <span class="c1"># Calculate coordinates</span>
+                <span class="n">coord1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">topol</span><span class="o">.</span><span class="n">trj</span><span class="o">.</span><span class="n">xyz</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">center</span><span class="p">]</span><span class="o">*</span><span class="mi">10</span> <span class="o">+</span>\
+                         <span class="n">pairVec1</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">MOBondlength</span>
+                <span class="n">coord2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">topol</span><span class="o">.</span><span class="n">trj</span><span class="o">.</span><span class="n">xyz</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">center</span><span class="p">]</span><span class="o">*</span><span class="mi">10</span> <span class="o">+</span>\
+                         <span class="n">pairVec2</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">MOBondlength</span>
+
+                <span class="c1"># Save relevant coordinates</span>
+                <span class="n">vectors</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="n">vectors</span><span class="p">,</span> <span class="n">pairVec1</span><span class="p">))</span>
+                <span class="n">vectors</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="n">vectors</span><span class="p">,</span> <span class="n">pairVec2</span><span class="p">))</span>
+                <span class="n">centers</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">centers</span><span class="p">,</span> <span class="n">center</span><span class="p">)</span>
+                <span class="n">centers</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">centers</span><span class="p">,</span> <span class="n">center</span><span class="p">)</span>
+                <span class="n">coordinates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="n">coordinates</span><span class="p">,</span> <span class="n">coord1</span><span class="p">))</span>
+                <span class="n">coordinates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="n">coordinates</span><span class="p">,</span> <span class="n">coord2</span><span class="p">))</span>
+
+            <span class="k">return</span> <span class="n">vectors</span><span class="p">,</span> <span class="n">coordinates</span><span class="p">,</span> <span class="n">centers</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">),</span>
+                    <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">),</span>
+                    <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="Wetter.calculate_vectors"><a class="viewcode-back" href="../Wetter.html#Wetter.Wetter.calculate_vectors">[docs]</a>    <span class="k">def</span> <span class="nf">calculate_vectors</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coordination</span><span class="p">,</span> <span class="n">O_frac</span><span class="p">,</span>\
+                          <span class="n">OH_frac</span><span class="p">,</span> <span class="n">OH2_frac</span><span class="p">,</span> <span class="n">center</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Calculate coordinates for solvate on for 5-coordinated atoms</span>
+
+<span class="sd">            Notes</span>
+<span class="sd">            -----</span>
+<span class="sd">            See calculate_pair_vectors</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">vectors</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        
+        <span class="n">vec</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">tempNeighbour</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">])</span>
+        <span class="c1">#Get indices for metal centers with coordination Nmax - 1</span>
+        <span class="n">centerIndices</span><span class="p">,</span> <span class="n">neighbourgraph</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_center_neighbours</span><span class="p">(</span>\
+                                            <span class="n">coordination</span><span class="p">,</span> <span class="n">center</span><span class="p">)</span>
+
+        <span class="k">if</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">centerIndices</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">):</span> <span class="c1"># If there are any Nmax-1 centers</span>
+            <span class="n">centers</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">verboseprint</span><span class="p">(</span><span class="s2">&quot;Found &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">centerIndices</span><span class="p">))</span> <span class="o">+</span>\
+                  <span class="s2">&quot; centers with Nmax - 1 coordination&quot;</span><span class="p">)</span>
+
+            <span class="c1">#Calculate only for user specified fraction</span>
+            <span class="n">randIndices</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">centerIndices</span><span class="p">)),</span>\
+                                        <span class="nb">int</span><span class="p">((</span><span class="n">OH2_frac</span> <span class="o">+</span> <span class="n">OH_frac</span><span class="p">)</span><span class="o">*</span>\
+                                            <span class="nb">float</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">centerIndices</span><span class="p">))))</span>
+            <span class="n">indices</span> <span class="o">=</span> <span class="n">centerIndices</span><span class="p">[</span><span class="n">randIndices</span><span class="p">]</span>
+
+            <span class="c1">#Calculate M-O vectors</span>
+            <span class="k">for</span> <span class="n">center</span> <span class="ow">in</span> <span class="n">indices</span><span class="p">:</span>
+                <span class="n">vec</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+
+                <span class="n">neighbours</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">neighbourgraph</span><span class="p">[</span><span class="n">center</span><span class="p">])</span>
+                <span class="n">centerArray</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">center</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">neighbours</span><span class="p">))</span>
+                <span class="n">dispArray</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="n">neighbours</span><span class="p">,</span> <span class="n">centerArray</span><span class="p">))</span>
+                <span class="n">dispArray</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">dispArray</span><span class="p">)</span>
+
+                <span class="n">dispVectors</span> <span class="o">=</span> <span class="n">md</span><span class="o">.</span><span class="n">compute_displacements</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">topol</span><span class="o">.</span><span class="n">trj</span><span class="p">,</span> <span class="n">dispArray</span><span class="p">,</span> <span class="n">periodic</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+                <span class="c1">#for neighbour in neighbourgraph[center]:</span>
+                <span class="k">for</span> <span class="n">vector</span> <span class="ow">in</span> <span class="n">dispVectors</span><span class="p">:</span>
+                     <span class="n">vector</span> <span class="o">=</span> <span class="n">vector</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">vector</span><span class="p">)</span>
+                     <span class="n">vec</span> <span class="o">=</span> <span class="n">vec</span> <span class="o">+</span> <span class="n">vector</span>
+
+                <span class="c1">#If norm of directional vector too small</span>
+                <span class="k">if</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">vec</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">0.1</span><span class="p">):</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">Warning: directional vector almost 0, will &quot;</span> <span class="o">+</span>\
+                          <span class="s2">&quot;not hydrate at atom with index: &quot;</span> <span class="o">+</span>\
+                           <span class="nb">str</span><span class="p">(</span><span class="n">center</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Probably due to symmetric center...</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">centers</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">centers</span><span class="p">,</span> <span class="n">center</span><span class="p">)</span>
+                    <span class="n">vec</span> <span class="o">=</span> <span class="n">vec</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">vec</span><span class="p">)</span>
+                    <span class="n">vectors</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="n">vectors</span><span class="p">,</span> <span class="n">vec</span><span class="p">))</span>
+                    <span class="n">vec</span> <span class="o">=</span> <span class="n">vec</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">MOBondlength</span>
+
+                    <span class="c1">#Save coordinates and correct units</span>
+                    <span class="n">coord</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">topol</span><span class="o">.</span><span class="n">trj</span><span class="o">.</span><span class="n">xyz</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">center</span><span class="p">]</span><span class="o">*</span><span class="mi">10</span> <span class="o">+</span> <span class="n">vec</span>
+                    <span class="n">coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="n">coords</span><span class="p">,</span> <span class="n">coord</span><span class="p">))</span>
+
+            <span class="k">return</span> <span class="n">vectors</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">centers</span>
+
+        <span class="k">else</span><span class="p">:</span> <span class="c1"># Else return empty arrays</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">),</span>
+                    <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">),</span>
+                    <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="Wetter.solvate"><a class="viewcode-back" href="../Wetter.html#Wetter.Wetter.solvate">[docs]</a>    <span class="k">def</span> <span class="nf">solvate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">params</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Calculates coordinates of solvate for specified metal center type</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        params : dict with keys</span>
+<span class="sd">        element : string</span>
+<span class="sd">            Element symbol</span>
+<span class="sd">        coordination : int</span>
+<span class="sd">            coordination number of element</span>
+<span class="sd">        OH_frac : float</span>
+<span class="sd">            fraction of element atoms that should be hydrated with</span>
+<span class="sd">            hydroxyl.</span>
+<span class="sd">        OH2_frac : float</span>
+<span class="sd">            fraction of element atoms that should be hydrated with</span>
+<span class="sd">            water.</span>
+<span class="sd">        Nmax : int</span>
+<span class="sd">            Maximum coordination number</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        vectors : ndarray(float)</span>
+<span class="sd">            Directional vectors for each solvate</span>
+<span class="sd">        coord : ndarray(float)</span>
+<span class="sd">            Coordinates for oxygen atom in each solvate</span>
+<span class="sd">        centers : ndarray(int)</span>
+<span class="sd">            List of each center that each solvate belongs to</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">element</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;element&#39;</span><span class="p">]</span>
+        <span class="n">coordination</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;coordination&#39;</span><span class="p">]</span>
+        <span class="n">OH_frac</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;OH&#39;</span><span class="p">]</span>
+        <span class="n">OH2_frac</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;OH2&#39;</span><span class="p">]</span>
+        <span class="n">O_frac</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;O&#39;</span><span class="p">]</span>
+        <span class="n">Nmax</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;Nmax&#39;</span><span class="p">]</span>
+ 
+        <span class="k">if</span><span class="p">(</span><span class="n">coordination</span> <span class="o">==</span> <span class="n">Nmax</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">vectors</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">centers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_vectors</span><span class="p">(</span>\
+                                           <span class="n">coordination</span><span class="p">,</span>\
+                                           <span class="n">O_frac</span><span class="p">,</span> <span class="n">OH_frac</span><span class="p">,</span> <span class="n">OH2_frac</span><span class="p">,</span>
+                                           <span class="n">element</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">hydCoords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">hydCoords</span><span class="p">,</span>\
+                                        <span class="n">coords</span><span class="p">[:</span><span class="nb">int</span><span class="p">(</span><span class="n">OH_frac</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="n">vectors</span><span class="p">))]))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">hydVectors</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">hydVectors</span><span class="p">,</span>\
+                                         <span class="n">vectors</span><span class="p">[:</span><span class="nb">int</span><span class="p">(</span><span class="n">OH_frac</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="n">vectors</span><span class="p">))]))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">hydCenters</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">hydCenters</span><span class="p">,</span>\
+                                         <span class="n">centers</span><span class="p">[:</span><span class="nb">int</span><span class="p">(</span><span class="n">OH_frac</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="n">vectors</span><span class="p">))]))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">watCoords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">watCoords</span><span class="p">,</span>\
+                                        <span class="n">coords</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">OH_frac</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="n">vectors</span><span class="p">)):]))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">watVectors</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">watVectors</span><span class="p">,</span>\
+                                         <span class="n">vectors</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">OH_frac</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="n">vectors</span><span class="p">)):]))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">watCenters</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">watCenters</span><span class="p">,</span>\
+                                         <span class="n">centers</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">OH_frac</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="n">vectors</span><span class="p">)):]))</span>
+
+        <span class="k">elif</span><span class="p">(</span><span class="n">coordination</span> <span class="o">==</span> <span class="n">Nmax</span> <span class="o">-</span> <span class="mi">2</span><span class="p">):</span>
+            <span class="n">vectors</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">centers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_pair_vectors</span><span class="p">(</span>\
+                                           <span class="n">coordination</span><span class="p">,</span>\
+                                           <span class="n">O_frac</span><span class="p">,</span> <span class="n">OH_frac</span><span class="p">,</span> <span class="n">OH2_frac</span><span class="p">,</span>
+                                           <span class="n">element</span><span class="p">)</span>
+
+            <span class="c1"># Take every other element as hydroxyl and the others as water since</span>
+            <span class="c1"># each 4-coordinated metal site should have one water and one </span>
+            <span class="c1"># hydroxyl</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">hydCoords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">hydCoords</span><span class="p">,</span> <span class="n">coords</span><span class="p">[::</span><span class="mi">2</span><span class="p">]))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">hydVectors</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">hydVectors</span><span class="p">,</span> <span class="n">vectors</span><span class="p">[::</span><span class="mi">2</span><span class="p">]))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">hydCenters</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">hydCenters</span><span class="p">,</span> <span class="n">centers</span><span class="p">[::</span><span class="mi">2</span><span class="p">]))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">watCoords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">watCoords</span><span class="p">,</span> <span class="n">coords</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">watVectors</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">watVectors</span><span class="p">,</span> <span class="n">vectors</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">watCenters</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">watCenters</span><span class="p">,</span> <span class="n">centers</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]))</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Can only hydrate Nmax - 1 and Nmax - 2 centers.</span><span class="se">\</span>
+<span class="s1">                             You tried to hydrate &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">Nmax</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39; - &#39;</span> <span class="o">+</span>\
+                             <span class="nb">str</span><span class="p">(</span><span class="n">coordination</span><span class="o">-</span><span class="n">Nmax</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39; centers. To solve this</span><span class="se">\</span>
+<span class="s1">                                                       issue edit config.wet.&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">vectors</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">centers</span></div>
+
+
+<div class="viewcode-block" id="Wetter.maximize_distance"><a class="viewcode-back" href="../Wetter.html#Wetter.Wetter.maximize_distance">[docs]</a>    <span class="k">def</span> <span class="nf">maximize_distance</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Maximize distance between solvate and it&#39;s neighbours</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -------</span>
+<span class="sd">        Collects all coordinates and calls optimize()</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">vectors</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="n">centers</span><span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+
+        <span class="c1">#Stack coordinates and centers and call optimize()</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="n">coords</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">hydCoords</span><span class="p">))</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="n">coords</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">watCoords</span><span class="p">))</span>
+
+        <span class="n">centers</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">((</span><span class="n">centers</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">hydCenters</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)))</span>
+        <span class="n">centers</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">((</span><span class="n">centers</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">watCenters</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)))</span>
+
+        <span class="n">coords</span><span class="p">,</span> <span class="n">vectors</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">optimize</span><span class="p">(</span><span class="n">coords</span><span class="p">,</span> <span class="n">centers</span><span class="p">)</span>
+
+        <span class="c1">#Set attributes to optimized values</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hydCoords</span> <span class="o">=</span> <span class="n">coords</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hydCoords</span><span class="p">)]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hydVectors</span> <span class="o">=</span> <span class="n">vectors</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hydCoords</span><span class="p">)]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">watCoords</span> <span class="o">=</span> <span class="n">coords</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hydCoords</span><span class="p">):]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">watVectors</span> <span class="o">=</span> <span class="n">vectors</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hydCoords</span><span class="p">):]</span></div>
+
+
+<div class="viewcode-block" id="Wetter.wet"><a class="viewcode-back" href="../Wetter.html#Wetter.Wetter.wet">[docs]</a>    <span class="k">def</span> <span class="nf">wet</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Creates atoms at the calculated coordinates</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        coords : ndarray</span>
+<span class="sd">            2D array containing coordinates for all atoms in solvate</span>
+<span class="sd">        elements : array</span>
+<span class="sd">            Array containing the element symbols</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">hydCoords</span><span class="p">,</span> <span class="n">hydElements</span> <span class="o">=</span> <span class="n">AtomCreator</span><span class="o">.</span><span class="n">add_hydroxyl</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hydCoords</span><span class="p">,</span> 
+                                                          <span class="bp">self</span><span class="o">.</span><span class="n">hydVectors</span><span class="p">,</span> 
+                                                          <span class="bp">self</span><span class="o">.</span><span class="n">theta</span><span class="p">)</span>
+
+        <span class="n">watCoords</span><span class="p">,</span> <span class="n">watElements</span> <span class="o">=</span> <span class="n">AtomCreator</span><span class="o">.</span><span class="n">add_water</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">watCoords</span><span class="p">,</span> 
+                                                       <span class="bp">self</span><span class="o">.</span><span class="n">watVectors</span><span class="p">,</span> 
+                                                       <span class="bp">self</span><span class="o">.</span><span class="n">theta</span><span class="p">)</span>
+
+        <span class="n">coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">watCoords</span><span class="p">,</span> <span class="n">hydCoords</span><span class="p">))</span>
+        <span class="n">elements</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">watElements</span><span class="p">,</span> <span class="n">hydElements</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">coords</span> <span class="o">=</span> <span class="n">coords</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">elements</span> <span class="o">=</span> <span class="n">elements</span>
+        <span class="n">minODist</span><span class="p">,</span> <span class="n">minHDist</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">overlap</span><span class="p">(</span><span class="n">coords</span><span class="p">,</span> <span class="n">elements</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">verboseprint</span><span class="p">(</span><span class="s2">&quot;Shortest O-O distance in solvent: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">minODist</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot; Angstrom.&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">verboseprint</span><span class="p">(</span><span class="s2">&quot;Shortest H-H distance in solvent: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">minHDist</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot; Angstrom.</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">coords</span><span class="p">,</span> <span class="n">elements</span></div>
+    
+<div class="viewcode-block" id="Wetter.overlap"><a class="viewcode-back" href="../Wetter.html#Wetter.Wetter.overlap">[docs]</a>    <span class="k">def</span> <span class="nf">overlap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">elements</span><span class="p">):</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">j</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">minODist</span> <span class="o">=</span> <span class="mf">9999.999</span>
+        <span class="n">minHDist</span> <span class="o">=</span> <span class="mf">9999.999</span>
+        <span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">coords</span><span class="p">):</span>
+            <span class="n">j</span> <span class="o">=</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="k">while</span> <span class="n">j</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">coords</span><span class="p">):</span>
+                <span class="k">if</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">coords</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">-</span><span class="n">coords</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="o">&lt;</span> <span class="n">minODist</span> <span class="ow">and</span> <span class="n">elements</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;O&#39;</span> <span class="ow">and</span> <span class="n">elements</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;O&#39;</span><span class="p">):</span>
+                    <span class="n">minODist</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">coords</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">-</span><span class="n">coords</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+                <span class="k">if</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">coords</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">-</span><span class="n">coords</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="o">&lt;</span> <span class="n">minHDist</span> <span class="ow">and</span> <span class="n">elements</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;H&#39;</span> <span class="ow">and</span> <span class="n">elements</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;H&#39;</span><span class="p">):</span>
+                    <span class="n">minHDist</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">coords</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">-</span><span class="n">coords</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+                <span class="n">j</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">return</span> <span class="n">minODist</span><span class="p">,</span> <span class="n">minHDist</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">drizzle</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../AtomCreator.html">AtomCreator module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../WetParser.html">WetParser module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Wetter.html">Wetter module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../main.html">main module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../pdbExplorer.html">pdbExplorer module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../potential.html">potential module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">wetter</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Samuel Stenberg.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

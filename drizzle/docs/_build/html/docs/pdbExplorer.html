@@ -1,0 +1,174 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>pdbExplorer module &#8212; wetter 1.0 documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-pdbExplorer">
+<span id="pdbexplorer-module"></span><h1>pdbExplorer module<a class="headerlink" href="#module-pdbExplorer" title="Permalink to this headline">¶</a></h1>
+<dl class="function">
+<dt id="pdbExplorer.append_atoms">
+<code class="descclassname">pdbExplorer.</code><code class="descname">append_atoms</code><span class="sig-paren">(</span><em>file</em>, <em>coords=[]</em>, <em>elements=[]</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pdbExplorer.html#append_atoms"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pdbExplorer.append_atoms" title="Permalink to this definition">¶</a></dt>
+<dd><p>Append atoms to pdb file</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>file</strong> : string</p>
+<blockquote>
+<div><p>pdb file to which atoms will be appended</p>
+</div></blockquote>
+<p><strong>coords</strong> : array</p>
+<blockquote>
+<div><p>1D Array of coordinates of all atoms</p>
+</div></blockquote>
+<p><strong>elements</strong> : array</p>
+<blockquote>
+<div><p>Array containing element symbols for all atoms</p>
+</div></blockquote>
+<p><strong>verbose</strong> : boolean</p>
+<blockquote class="last">
+<div><p>sets verbosity</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="pdbExplorer.remove_lower_coordinated">
+<code class="descclassname">pdbExplorer.</code><code class="descname">remove_lower_coordinated</code><span class="sig-paren">(</span><em>topol</em>, <em>Nmax</em>, <em>element</em>, <em>verbose</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pdbExplorer.html#remove_lower_coordinated"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pdbExplorer.remove_lower_coordinated" title="Permalink to this definition">¶</a></dt>
+<dd><p>Removes low coordinated (&lt;Nmax-3) atoms</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>topol</strong> : radish.Topologizer instance</p>
+<blockquote>
+<div><p>Topologizer instance of metal oxide crystal</p>
+</div></blockquote>
+<p><strong>Nmax</strong> : int</p>
+<blockquote>
+<div><p>Maximum coordination for element</p>
+</div></blockquote>
+<p><strong>element</strong> : string</p>
+<blockquote>
+<div><p>Element symbol for metal atom</p>
+</div></blockquote>
+<p><strong>verbose</strong> : boolean</p>
+<blockquote>
+<div><p>sets verbosity</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">topol</p>
+<blockquote class="last">
+<div><p>radish.Topologizer instance with low coordinated atoms removed</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">wetter</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../AtomCreator.html">AtomCreator module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../WetParser.html">WetParser module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Wetter.html">Wetter module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../main.html">main module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../pdbExplorer.html">pdbExplorer module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../potential.html">potential module</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Samuel Stenberg.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+      |
+      <a href="../_sources/docs/pdbExplorer.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

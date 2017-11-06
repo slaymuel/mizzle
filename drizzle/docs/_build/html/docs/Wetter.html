@@ -1,0 +1,308 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Wetter module &#8212; wetter 1.0 documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-Wetter">
+<span id="wetter-module"></span><h1>Wetter module<a class="headerlink" href="#module-Wetter" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="Wetter.Wetter">
+<em class="property">class </em><code class="descclassname">Wetter.</code><code class="descname">Wetter</code><span class="sig-paren">(</span><em>verbose</em>, <em>topol</em>, <em>theta=104.5</em>, <em>MOBondlength=2.2</em>, <em>HOHBondlength=1</em>, <em>OHBondlength=1</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Wetter.html#Wetter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Wetter.Wetter" title="Permalink to this definition">¶</a></dt>
+<dd><p class="rubric">Methods</p>
+<dl class="method">
+<dt id="Wetter.Wetter.calculate_pair_vectors">
+<code class="descname">calculate_pair_vectors</code><span class="sig-paren">(</span><em>coordination</em>, <em>O_frac</em>, <em>OH_frac</em>, <em>OH2_frac</em>, <em>center</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Wetter.html#Wetter.calculate_pair_vectors"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Wetter.Wetter.calculate_pair_vectors" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate coordinates for solvate on for 4-coordinated atoms</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>vectors</strong> : ndarray(float)</p>
+<blockquote>
+<div><p>Directional vectors for each solvate</p>
+</div></blockquote>
+<p><strong>coord</strong> : ndarray(float)</p>
+<blockquote>
+<div><p>Coordinates for oxygen atom in each solvate</p>
+</div></blockquote>
+<p><strong>centers</strong> : ndarray(int)</p>
+<blockquote class="last">
+<div><p>List of each center that each solvate belongs to</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Notes</p>
+<p>Calculates the sum of vectors from oxygen to 4-coordinated metal
+atoms. These vectors are used as first guesses of the positions for
+the hydration molecules.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="Wetter.Wetter.calculate_vectors">
+<code class="descname">calculate_vectors</code><span class="sig-paren">(</span><em>coordination</em>, <em>O_frac</em>, <em>OH_frac</em>, <em>OH2_frac</em>, <em>center</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Wetter.html#Wetter.calculate_vectors"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Wetter.Wetter.calculate_vectors" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate coordinates for solvate on for 5-coordinated atoms</p>
+<p class="rubric">Notes</p>
+<p>See calculate_pair_vectors</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="Wetter.Wetter.get_center_neighbours">
+<code class="descname">get_center_neighbours</code><span class="sig-paren">(</span><em>coordination</em>, <em>center</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Wetter.html#Wetter.get_center_neighbours"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Wetter.Wetter.get_center_neighbours" title="Permalink to this definition">¶</a></dt>
+<dd><p>Construct neighbourgraph where columns are metal centers and rows 
+their coordination shell</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>coordination</strong> : int</p>
+<blockquote>
+<div><p>The coordination for which to construct the neighbourgraph and
+the indices for all such metal centers</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">centerIndices</p>
+<blockquote>
+<div><p>Indices for all metal centers if there are any, otherwise empty</p>
+</div></blockquote>
+<p>neighbourgrap</p>
+<blockquote class="last">
+<div><p>neighbourgraph if any atoms found, empty otherwise</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="Wetter.Wetter.maximize_distance">
+<code class="descname">maximize_distance</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Wetter.html#Wetter.maximize_distance"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Wetter.Wetter.maximize_distance" title="Permalink to this definition">¶</a></dt>
+<dd><p>Maximize distance between solvate and it’s neighbours</p>
+<p class="rubric">Notes</p>
+<p>Collects all coordinates and calls optimize()</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="Wetter.Wetter.optimize">
+<code class="descname">optimize</code><span class="sig-paren">(</span><em>coords</em>, <em>centers</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Wetter.html#Wetter.optimize"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Wetter.Wetter.optimize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set up for minimization scheme for the L-BFGS-B algorithm</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>coords</strong> : 3*N array(float)</p>
+<blockquote>
+<div><p>The coordination for which to construct the neighbourgraph and
+the indices for all such metal centers</p>
+</div></blockquote>
+<p><strong>centers</strong> : array(int)</p>
+<blockquote>
+<div><p>Array containing all the centers which has bound each solvate</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">coords</p>
+<blockquote>
+<div><p>Optimized oxygen coordinates</p>
+</div></blockquote>
+<p>vectors</p>
+<blockquote>
+<div><p>Optimized M-O vectors</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><p class="first"><strong>ValueError</strong></p>
+<blockquote class="last">
+<div><p>If one or more coordinates are missing centers</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="Wetter.Wetter.solvate">
+<code class="descname">solvate</code><span class="sig-paren">(</span><em>params</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Wetter.html#Wetter.solvate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Wetter.Wetter.solvate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates coordinates of solvate for specified metal center type</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>params</strong> : dict</p>
+<blockquote>
+<div><p>dict with keys:
+element : string</p>
+<blockquote>
+<div><p>Element symbol</p>
+</div></blockquote>
+<dl class="docutils">
+<dt>coordination <span class="classifier-delimiter">:</span> <span class="classifier">int</span></dt>
+<dd><p class="first last">coordination number of element</p>
+</dd>
+<dt>OH_frac <span class="classifier-delimiter">:</span> <span class="classifier">float</span></dt>
+<dd><p class="first last">fraction of element atoms that should be hydrated with
+hydroxyl.</p>
+</dd>
+<dt>OH2_frac <span class="classifier-delimiter">:</span> <span class="classifier">float</span></dt>
+<dd><p class="first last">fraction of element atoms that should be hydrated with
+water.</p>
+</dd>
+<dt>Nmax <span class="classifier-delimiter">:</span> <span class="classifier">int</span></dt>
+<dd><p class="first last">Maximum coordination number</p>
+</dd>
+</dl>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>vectors</strong> : ndarray(float)</p>
+<blockquote>
+<div><p>Directional vectors for each solvate</p>
+</div></blockquote>
+<p><strong>coord</strong> : ndarray(float)</p>
+<blockquote>
+<div><p>Coordinates for oxygen atom in each solvate</p>
+</div></blockquote>
+<p><strong>centers</strong> : ndarray(int)</p>
+<blockquote class="last">
+<div><p>List of each center that each solvate belongs to</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="Wetter.Wetter.wet">
+<code class="descname">wet</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Wetter.html#Wetter.wet"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Wetter.Wetter.wet" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates atoms at the calculated coordinates</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>coords</strong> : ndarray</p>
+<blockquote>
+<div><p>2D array containing coordinates for all atoms in solvate</p>
+</div></blockquote>
+<p><strong>elements</strong> : array</p>
+<blockquote class="last">
+<div><p>Array containing the element symbols</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="Wetter.print">
+<code class="descclassname">Wetter.</code><code class="descname">print</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Wetter.html#print"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Wetter.print" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">wetter</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../AtomCreator.html">AtomCreator module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../WetParser.html">WetParser module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Wetter.html">Wetter module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../main.html">main module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../pdbExplorer.html">pdbExplorer module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../potential.html">potential module</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Samuel Stenberg.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+      |
+      <a href="../_sources/docs/Wetter.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

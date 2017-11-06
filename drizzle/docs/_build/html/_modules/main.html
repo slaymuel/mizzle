@@ -1,0 +1,256 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>main &#8212; drizzle 1.0 documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for main</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python</span>
+<span class="c1"># PYTHON_ARGCOMPLETE_OK</span>
+<span class="sd">&quot;&quot;&quot;Wrapper for the Wetter module which performs the actual algorithm.</span>
+
+<span class="sd">Example</span>
+<span class="sd">-------</span>
+<span class="sd">Usage::</span>
+
+<span class="sd">    $ ./main.py config.wet TiO2_110.pdb</span>
+
+<span class="sd">Example config file::</span>
+
+<span class="sd">    atom Ti: high coordinated</span>
+<span class="sd">    water: 0.5</span>
+<span class="sd">    hydroxyl: 0.5</span>
+
+<span class="sd">    atom Ti: low coordinated</span>
+<span class="sd">        fraction: 1</span>
+<span class="sd">    end</span>
+
+<span class="sd">Notes</span>
+<span class="sd">-----</span>
+<span class="sd">It is also possible to directly import the Wetter module.</span>
+<span class="sd"> </span>
+<span class="sd">    Example usage::</span>
+
+<span class="sd">        from Wetter import Wetter</span>
+<span class="sd">        from radish import Topologizer</span>
+
+<span class="sd">        wet = Wetter(args.verbose, newtopol)</span>
+<span class="sd">        wet.solvate({&#39;Nmax&#39;: Nmax, &#39;element&#39;: element, &#39;coordination&#39;: Nmax - 1,\</span>
+<span class="sd">&#39;OH&#39;: hydroxylFrac, &#39;OH2&#39;: waterFrac, &#39;O&#39;:0.05})</span>
+<span class="sd">        wet.solvate({&#39;Nmax&#39;: Nmax, &#39;element&#39;: element, &#39;coordination&#39;: Nmax - 2,\</span>
+<span class="sd">&#39;OH&#39;: fraction, &#39;OH2&#39;: 0, &#39;O&#39;:0.1})</span>
+<span class="sd">        wet.maximize_distance()</span>
+<span class="sd">        wet.wet()</span>
+<span class="sd">        we.save()</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">radish</span> <span class="k">import</span> <span class="n">Topologizer</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">argcomplete</span>
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">from</span> <span class="nn">shutil</span> <span class="k">import</span> <span class="n">copyfile</span>
+<span class="kn">from</span> <span class="nn">timeit</span> <span class="k">import</span> <span class="n">default_timer</span> <span class="k">as</span> <span class="n">timer</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="c1">#&#39;Name of program&#39; imports</span>
+<span class="kn">from</span> <span class="nn">WetParser</span> <span class="k">import</span> <span class="n">parse</span>
+<span class="kn">from</span> <span class="nn">WetParser</span> <span class="k">import</span> <span class="n">get_max_coordination</span>
+<span class="kn">from</span> <span class="nn">pdbExplorer</span> <span class="k">import</span> <span class="n">remove_low_coordinated</span>
+<span class="kn">from</span> <span class="nn">pdbExplorer</span> <span class="k">import</span> <span class="n">append_atoms</span>
+<span class="kn">from</span> <span class="nn">Wetter</span> <span class="k">import</span> <span class="n">Wetter</span>
+
+<div class="viewcode-block" id="CustomFormatter"><a class="viewcode-back" href="../main.html#main.CustomFormatter">[docs]</a><span class="k">class</span> <span class="nc">CustomFormatter</span><span class="p">(</span><span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentDefaultsHelpFormatter</span><span class="p">,</span>
+                      <span class="n">argparse</span><span class="o">.</span><span class="n">RawDescriptionHelpFormatter</span><span class="p">):</span>
+    <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="main"><a class="viewcode-back" href="../main.html#main.main">[docs]</a><span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">argv</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+
+    <span class="k">if</span> <span class="n">argv</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">argv</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">argv</span>
+
+    <span class="n">argparser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="vm">__doc__</span><span class="p">,</span>
+                                       <span class="n">formatter_class</span><span class="o">=</span><span class="n">CustomFormatter</span><span class="p">)</span>
+    
+    <span class="c1"># Options</span>
+    <span class="n">argparser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-v&quot;</span><span class="p">,</span> <span class="s2">&quot;--verbose&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+                            <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Be loud and noisy&quot;</span><span class="p">)</span>
+
+    <span class="n">argparser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-c&quot;</span><span class="p">,</span> <span class="s2">&quot;--conf&quot;</span><span class="p">,</span>
+                           <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Config file&quot;</span><span class="p">)</span>
+    <span class="n">argparser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-f&quot;</span><span class="p">,</span> <span class="s2">&quot;--pdb_file&quot;</span><span class="p">,</span>
+                           <span class="n">help</span><span class="o">=</span><span class="s2">&quot;PDB file&quot;</span><span class="p">)</span>
+    <span class="c1"># argparser.add_argument(&quot;files&quot;, nargs=&quot;+&quot;, metavar=&quot;pdb&quot;,\</span>
+    <span class="c1">#                        help=&quot;Input structure file in pdb format&quot;)</span>
+
+    <span class="c1"># Parse arguments</span>
+    <span class="n">argcomplete</span><span class="o">.</span><span class="n">autocomplete</span><span class="p">(</span><span class="n">argparser</span><span class="p">)</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="n">argparser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+    <span class="c1">#verboseprint = print if verbose else lambda *a, **k: None</span>
+    <span class="c1"># Run program</span>
+    
+    <span class="c1">## PREPARE INPUT ##</span>
+
+    <span class="c1">#Copy pdb input file to inputfile_wet.pdb</span>
+    <span class="c1">#fileWet = args.files[0].rsplit(&#39;.&#39;, 1)[0]</span>
+    <span class="n">fileWet</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">pdb_file</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">fileExt</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">pdb_file</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">fileWet</span> <span class="o">=</span> <span class="n">fileWet</span> <span class="o">+</span> <span class="s2">&quot;_wet.&quot;</span> <span class="o">+</span> <span class="n">fileExt</span>
+    <span class="n">copyfile</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">pdb_file</span><span class="p">,</span> <span class="n">fileWet</span><span class="p">)</span>
+
+    <span class="n">topol</span> <span class="o">=</span> <span class="n">Topologizer</span><span class="o">.</span><span class="n">from_coords</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">pdb_file</span><span class="p">)</span>
+
+    <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">pdb_file</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span>
+    <span class="n">content</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">readlines</span><span class="p">()</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+    <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">content</span><span class="p">:</span>
+        <span class="k">if</span><span class="p">(</span><span class="s1">&#39;CRYST1&#39;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">):</span>
+            <span class="n">tempBoxVectors</span> <span class="o">=</span> <span class="n">line</span>
+            <span class="n">boxVectors</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">tempBoxVectors</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">1</span><span class="p">:</span><span class="mi">4</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+            <span class="k">break</span>
+
+    <span class="n">atoms</span> <span class="o">=</span> <span class="n">parse</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">conf</span><span class="p">)</span>	<span class="c1">#Call WetParser to parse config file</span>
+
+    <span class="n">element</span> <span class="o">=</span> <span class="n">atoms</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;element&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="c1">#Get element from config.wet</span>
+    <span class="n">waterFrac</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">hydroxylFrac</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">fraction</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Running Wetter with Config:</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Atom     Coordination    OH-fraction     OH2-fraction    Bulk-coordination&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">atom</span> <span class="ow">in</span> <span class="n">atoms</span><span class="p">:</span>
+        <span class="n">element</span> <span class="o">=</span> <span class="n">atom</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;element&#39;</span><span class="p">)</span>
+        <span class="n">Nmax</span> <span class="o">=</span> <span class="n">get_max_coordination</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>	<span class="c1">#Get Nmax</span>
+        <span class="n">coordination</span> <span class="o">=</span> <span class="n">atom</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;coordination&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span><span class="p">(</span><span class="n">coordination</span> <span class="o">==</span> <span class="s1">&#39;surface&#39;</span><span class="p">):</span>
+            <span class="n">hydroxylFrac</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">atom</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;hydroxyl&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+            <span class="n">waterFrac</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">atom</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;water&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+
+        <span class="k">elif</span><span class="p">(</span><span class="n">coordination</span> <span class="o">==</span> <span class="s1">&#39;defect&#39;</span><span class="p">):</span>
+            <span class="n">fraction</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">atom</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;fraction&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot; &quot;</span> <span class="o">+</span> <span class="n">atom</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;element&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\t</span><span class="s2">    &quot;</span> <span class="o">+</span> \
+              <span class="nb">str</span><span class="p">(</span><span class="n">atom</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;coordination&#39;</span><span class="p">))</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\t</span><span class="s2">     &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">hydroxylFrac</span><span class="p">)</span> <span class="o">+</span>\
+               <span class="s2">&quot;</span><span class="se">\t</span><span class="s2">      &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">waterFrac</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\t</span><span class="s2">         &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">Nmax</span><span class="p">))</span>
+
+
+    <span class="c1">#Remove reactive atoms with low coordination ( &gt; Nmax - 2)</span>
+    <span class="n">newtopol</span> <span class="o">=</span> <span class="n">remove_low_coordinated</span><span class="p">(</span><span class="n">topol</span><span class="p">,</span> <span class="n">Nmax</span><span class="p">,</span> <span class="n">element</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">verbose</span><span class="p">)</span>
+
+    <span class="c1"># Save new pdb file (remove later but needed for now by pdbExplorer)</span>
+    <span class="n">newtopol</span><span class="o">.</span><span class="n">trj</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">fileWet</span><span class="p">,</span> <span class="n">force_overwrite</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span>
+
+    <span class="c1">### RUN ALGORITHM ###</span>
+
+    <span class="n">wet</span> <span class="o">=</span> <span class="n">Wetter</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">verbose</span><span class="p">,</span> <span class="n">newtopol</span><span class="p">,</span> <span class="n">boxVectors</span><span class="p">)</span>	<span class="c1">#Create Wetter object</span>
+    <span class="n">wet</span><span class="o">.</span><span class="n">solvate</span><span class="p">({</span><span class="s1">&#39;Nmax&#39;</span><span class="p">:</span> <span class="n">Nmax</span><span class="p">,</span> <span class="s1">&#39;element&#39;</span><span class="p">:</span> <span class="n">element</span><span class="p">,</span> <span class="s1">&#39;coordination&#39;</span><span class="p">:</span> <span class="n">Nmax</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span>\
+                 <span class="s1">&#39;OH&#39;</span><span class="p">:</span> <span class="n">hydroxylFrac</span><span class="p">,</span> <span class="s1">&#39;OH2&#39;</span><span class="p">:</span> <span class="n">waterFrac</span><span class="p">,</span> <span class="s1">&#39;O&#39;</span><span class="p">:</span><span class="mf">0.05</span><span class="p">})</span>
+    <span class="n">wet</span><span class="o">.</span><span class="n">solvate</span><span class="p">({</span><span class="s1">&#39;Nmax&#39;</span><span class="p">:</span> <span class="n">Nmax</span><span class="p">,</span> <span class="s1">&#39;element&#39;</span><span class="p">:</span> <span class="n">element</span><span class="p">,</span> <span class="s1">&#39;coordination&#39;</span><span class="p">:</span> <span class="n">Nmax</span> <span class="o">-</span> <span class="mi">2</span><span class="p">,</span>\
+                 <span class="s1">&#39;OH&#39;</span><span class="p">:</span> <span class="n">fraction</span><span class="p">,</span> <span class="s1">&#39;OH2&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;O&#39;</span><span class="p">:</span><span class="mf">0.1</span><span class="p">})</span>
+    <span class="n">wet</span><span class="o">.</span><span class="n">maximize_distance</span><span class="p">()</span>	<span class="c1">#Run minimization</span>
+    <span class="n">coords</span><span class="p">,</span> <span class="n">elements</span> <span class="o">=</span> <span class="n">wet</span><span class="o">.</span><span class="n">wet</span><span class="p">()</span> <span class="c1">#Get lists of coordinates and elements</span>
+
+    <span class="c1">#Append atoms to pdbFile</span>
+    <span class="n">append_atoms</span><span class="p">(</span><span class="n">file</span> <span class="o">=</span> <span class="n">fileWet</span><span class="p">,</span> <span class="n">coords</span> <span class="o">=</span> <span class="n">coords</span><span class="p">,</span> <span class="n">elements</span> <span class="o">=</span> <span class="n">elements</span><span class="p">)</span></div>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="n">main</span><span class="p">())</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">drizzle</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../AtomCreator.html">AtomCreator module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../WetParser.html">WetParser module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Wetter.html">Wetter module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../main.html">main module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../pdbExplorer.html">pdbExplorer module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../potential.html">potential module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">wetter</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Samuel Stenberg.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
