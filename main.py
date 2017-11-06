@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # PYTHON_ARGCOMPLETE_OK
-"""Wrapper for the Wetter module which performs the actual algorithm.
+"""Wrapper for the Wetter module which performs the actual algorithm. :)
 
 Example
 -------
