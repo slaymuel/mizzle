@@ -149,12 +149,17 @@ class Wetter:
         for center in centers:
             neighbours = md.compute_neighbors(self.topol.trj, cutoff/10.0,\
                                               np.array([center]))
+
             centerNumNeighbours = np.hstack((centerNumNeighbours,\
                                              len(neighbours[0])))
-            centerNeighbours = np.vstack((centerNeighbours,\
-                                    self.topol.trj.xyz[0][neighbours[0]]*10))
-        # Get ghost atoms for pbc
-        #centerNeighbours = ghosts.get(self.topol.trj.xyz[0][centers], centerNeighbours, self.boxVectors)
+            #centerNeighbours = np.vstack((centerNeighbours,\
+            #                        self.topol.trj.xyz[0][neighbours[0]]*10))
+
+            centerArray = np.repeat(center, len(neighbours[0]))
+            dispArray = np.vstack((neighbours, centerArray))
+            dispArray = np.transpose(dispArray)
+            dispVectors = md.compute_displacements(self.topol.trj, dispArray, periodic = True)[0]
+            centerNeighbours = np.vstack((centerNeighbours, -dispVectors*10 + self.topol.trj.xyz[0][center]*10))
 
         #Print timings if verbose
         start = timer()
@@ -279,15 +284,17 @@ class Wetter:
                 sumVec = np.array([0, 0, 0], dtype=float)
                 points = np.vstack((points, self.topol.trj.xyz[0][center]*10))
 
-                for neighbour in neighbourgraph[center]:
-                    points = np.vstack((points, 
-                                        self.topol.trj.xyz[0][neighbour]*10))
-                    tempVec = self.topol.trj.xyz[0][center] -\
-                        self.topol.trj.xyz[0][neighbour]
-                    tempVec = tempVec/np.linalg.norm(tempVec) # M-O vector
+                neighbours = np.array(neighbourgraph[center])
+                centerArray = np.repeat(center, len(neighbours))
+                dispArray = np.vstack((neighbours, centerArray))
+                dispArray = np.transpose(dispArray)
 
-                    tempVectors = np.vstack((tempVectors, tempVec))
-                    sumVec += tempVec # Sum M-O vectors
+                dispVectors = md.compute_displacements(self.topol.trj, dispArray, periodic = True)[0]
+
+                for vector in dispVectors:
+                    vector = vector/np.linalg.norm(vector)
+                    tempVectors = np.vstack((tempVectors, vector))
+                    sumVec += vector # Sum M-O vectors
 
                 sumVec = sumVec/np.linalg.norm(sumVec)
 
@@ -385,17 +392,19 @@ class Wetter:
             #Calculate M-O vectors
             for center in indices:
                 vec = [0, 0, 0]
-                centers = np.empty([0, 3])
-                centers = np.vstack((centers, self.topol.trj.xyz[0][center]))
-                neighbours = ghosts.get(centers, self.topol.trj.xyz[0][neighbourgraph[center]], self.boxVectors)
+
+                
+                neighbours = np.array(neighbourgraph[center])
+                centerArray = np.repeat(center, len(neighbours))
+                dispArray = np.vstack((neighbours, centerArray))
+                dispArray = np.transpose(dispArray)
+
+                dispVectors = md.compute_displacements(self.topol.trj, dispArray, periodic = True)[0]
+
                 #for neighbour in neighbourgraph[center]:
-                for neighbour in neighbours:
-                    #tempNeighbour = self.topol.trj.xyz[0][neighbour]
-                    tempNeighbour = neighbour
-                    tempVec = self.topol.trj.xyz[0][center] -\
-                              tempNeighbour
-                    tempVec = tempVec/np.linalg.norm(tempVec) # M-O vector
-                    vec = vec + tempVec # Sum M-O vectors
+                for vector in dispVectors:
+                     vector = vector/np.linalg.norm(vector)
+                     vec = vec + vector
 
                 #If norm of directional vector too small
                 if(np.linalg.norm(vec) < 0.1):

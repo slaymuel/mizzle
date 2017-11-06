@@ -66,7 +66,7 @@ def main(argv=None):
     # Options
     argparser.add_argument("-v", "--verbose", action="store_true",
                             help="Be loud and noisy")
-    
+
     argparser.add_argument("Config file (default: config.wet)", nargs="+",\
                            default="config.wet", metavar="conf",\
                            help="Config file")
