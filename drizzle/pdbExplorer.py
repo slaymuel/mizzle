@@ -6,9 +6,9 @@ from __future__ import print_function
 from radish import Topologizer
 import numpy as np
 import mdtraj as md
+from IPython import embed
 
-
-def append_atoms(file, coords=[], elements = []):
+def append_atoms(file, resname, coords=[], elements = [], ):
     """Append atoms to pdb file
 
     Parameters
@@ -40,7 +40,7 @@ def append_atoms(file, coords=[], elements = []):
         nrAtoms = len(indices)
 
         # Variables for the .pdb format
-        residueName = 'SOL'
+        residueName = resname
         chainIdentifier = 'A'
         residueSequenceNumber = '2'
         occupancy = '1.00'
@@ -173,6 +173,9 @@ def remove_low_coordinated(topol, Nmax, element, verbose):
         # Get low coordinated atoms using radish
         i = 3   # Coordination less than or equal to Nmax-3
         while(i <= Nmax):
+            #print(topol.extract(element,\
+            #                                  environment = {'O': Nmax - i}).\
+            #                                          index.get_level_values(1))
             try:
                 centerIndices = topol.extract(element,\
                                               environment = {'O': Nmax - i}).\
@@ -225,5 +228,10 @@ def remove_low_coordinated(topol, Nmax, element, verbose):
         topology = md.Topology.from_dataframe(topology, bonds = None)
         trajectory = md.Trajectory(xyz, topology)
         topol = Topologizer.from_mdtraj(trajectory)
+        if(len(topol.trj.xyz[0]) < 1):
+            raise ValueError("Incompatible structure: When removing low coordinated atoms, all toms where removed.")
 
+        #try:
         topol.topologize()
+        #except ValueError:
+        #    raise ValueError("Incompatible structure: Failed to remove low coordinated atoms. The input structure seems flawed.")

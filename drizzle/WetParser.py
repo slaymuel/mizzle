@@ -11,13 +11,13 @@ def parse(file):
     content = f.readlines()
     f.close()
 
-    keyWords = ['atom', 'molecule', 'end']
+    keyWords = ['atom', 'molecule', 'resname', 'end']
     subKeyWords = ['defect', 'surface', 'HOH bond length', 'OH bond length', 'MOH bond length', 'bond angle', 'water', 'hydroxyl', 'fraction']
     atoms = []
-
+    resname = None
     i = 0
-    while(i < len(content)):
 
+    while(i < len(content)):
         if('atom' in content[i]):
             keyWordIndex = content[i].index('atom')
             colonIndex = content[i].index(':')
@@ -38,11 +38,18 @@ def parse(file):
 
             continue
 
-        elif('end' in content[i]):
+        elif('resname' in content[i]):
+            colonIndex = content[i].index(':')
+            resname = content[i][colonIndex+1:].strip()
+            if(len(resname) > 3):
+                raise LookupError("Error in config file: resname can be no longer than 3 characters")
+
+        elif(content[i].strip() == 'end'):
             break
 
         i += 1
-    return atoms
+
+    return atoms, resname
 
 def get_max_coordination(element):
     """Finds bulk coordination in MaxCoordinations.data
@@ -68,4 +75,3 @@ def get_max_coordination(element):
     if(not foundMax):
         raise ValueError(("Could not find maximum coordination number for "
                           " {} element in {}.".format(element, maxNf)))
-    
