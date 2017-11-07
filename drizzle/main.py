@@ -45,6 +45,7 @@ import argparse
 from shutil import copyfile
 from timeit import default_timer as timer
 import numpy as np
+import os
 
 #'Name of program' imports
 from WetParser import parse
@@ -71,6 +72,8 @@ def main(argv=None):
 
     argparser.add_argument("-c", "--conf", default='config.wet',
                            help="Config file")
+    argparser.add_argument("-o", "--out",
+                           help="Output filename")
     #argparser.add_argument("-f", "--pdb_file",
     #                       help="PDB file")
     argparser.add_argument("files", nargs="+", metavar="pdb",\
@@ -83,11 +86,16 @@ def main(argv=None):
     # Run program
     
     ## PREPARE INPUT ##
-    #Copy pdb input file to inputfile_wet.pdb
-    fileWet = args.files[0].rsplit('.', 1)[0]
-    #fileWet = args.pdb_file.rsplit('.', 1)[0]
-    fileExt = args.files[0].rsplit('.', 1)[1]
-    fileWet = fileWet + "_wet." + fileExt
+    path = os.path.split(args.files[0])[0]
+    if(args.out):
+        fileWet = os.path.join(path, args.out)
+    else:
+        #Copy pdb input file to inputfile_wet.pdb
+        fileWet = args.files[0].rsplit('.', 1)[0]
+        #fileWet = args.pdb_file.rsplit('.', 1)[0]
+        fileExt = args.files[0].rsplit('.', 1)[1]
+        fileWet = fileWet + "_wet." + fileExt
+
     copyfile(args.files[0], fileWet)
 
     topol = Topologizer.from_coords(args.files[0])
@@ -102,8 +110,10 @@ def main(argv=None):
             boxVectors = np.array(tempBoxVectors.split()[1:4], dtype=float)
             break
 
-    atoms = parse(args.conf)	#Call WetParser to parse config file
+    atoms, resname = parse(args.conf)	#Call WetParser to parse config file
 
+    if(not resname):
+        resname = 'SOL'
     element = atoms[0].get('element', None) #Get element from config.wet
     waterFrac = None
     hydroxylFrac = None
@@ -125,7 +135,7 @@ def main(argv=None):
               str(atom.get('coordination')) + "\t     " + str(hydroxylFrac) +\
                "\t      " + str(waterFrac) + "\t         " + str(Nmax))
 
-
+    print("Solvate residues will be named: " + resname)
     #Remove reactive atoms with low coordination ( > Nmax - 2)
     newtopol = remove_low_coordinated(topol, Nmax, element, args.verbose)
 
@@ -140,10 +150,12 @@ def main(argv=None):
     wet.solvate({'Nmax': Nmax, 'element': element, 'coordination': Nmax - 2,\
                  'OH': fraction, 'OH2': 0, 'O':0.1})
     wet.optimize()	#Run minimization
-    coords, elements = wet.wet() #Get lists of coordinates and elements
-
+    #coords, elements = wet.wet() #Get lists of coordinates and elements
+    wet.wet()
+    wet.append_atoms(fileWet, resname)
+    
     #Append atoms to pdbFile
-    append_atoms(file = fileWet, coords = coords, elements = elements)
+    #append_atoms(file = fileWet, coords = coords, elements = elements)
 
 if __name__ == "__main__":
     sys.exit(main())

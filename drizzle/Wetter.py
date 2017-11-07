@@ -13,6 +13,7 @@ Using wetter module in existing project::
 'coordination': coordination, 'OH': hydroxylFrac, 'OH2': waterFrac, 'O':0.05})
     wet.optimize()
     wet.wet()
+    wet.append_atoms('outputfile.pdb', 'residuename')
 
 Attributes
 ----------
@@ -67,6 +68,7 @@ import ghosts
 from pdbExplorer import append_atoms
 import AtomCreator
 from overlap import shortest_distance
+from puts import puts
 
 if sys.version_info[0] == 2:
     # workaround for Sphinx autodoc bug
@@ -101,7 +103,7 @@ class Wetter:
         self.highWaterFrac = 1
         self.highHydroxylFrac = 1
         self.boxVectors = boxVectors
-
+        self.verbose = verbose
         #Use radish (RAD-algorithm) to compute the coordination of each atom
         self.topol = topol
 
@@ -110,8 +112,18 @@ class Wetter:
 
         #Set up verbose print function
         self.verboseprint = print if verbose else lambda *a, **k: None
+        self.verboseputs = puts if verbose else lambda *a, **k: None
+        self.i = 0
+        self.potTime = None
+        self.jacPotTime = None
 
-
+    def show_progress(self, x):
+        self.i += 1
+        if(self.i % 10 == 0 or self.i == 1):
+            self.verboseprint('\r', end='')
+            sys.stdout.flush()
+            self.verboseprint("Maximum time left: " + str(int((500 - self.i)*self.jacPotTime + (500 - self.i)*self.potTime)) + 's', end='')
+            
     def optimizer(self, coords, centers):
         """Set up for minimization scheme for the L-BFGS-B algorithm
 
@@ -180,6 +192,7 @@ class Wetter:
         potential.potential_c(coords.flatten(), centers, self.topol,\
                               centerNeighbours, centerNumNeighbours, self.boxVectors)
         end = timer()
+        self.potTime = end-start
         self.verboseprint("Potential takes: " + str(end-start) +\
                           " seconds to calculate")
 
@@ -187,6 +200,7 @@ class Wetter:
         potential.potential_c_jac(coords.flatten(), centers, self.topol,\
                                   centerNeighbours, centerNumNeighbours, self.boxVectors)
         end = timer()
+        self.jacPotTime = end-start
         self.verboseprint("Potential Jacobian takes: " + str(end-start) +\
               " seconds to calculate\n")
 
@@ -199,12 +213,15 @@ class Wetter:
                                 centerNumNeighbours, self.boxVectors),
                         jac = potential.potential_c_jac,
                         method = 'L-BFGS-B',
+                        callback = self.show_progress,
                         options={'disp': False, 'gtol': 1e-05, 'iprint': 0,\
                                  'eps': 1.4901161193847656e-05,\
-                                 'maxiter': 1000})
+                                 'maxiter': 500})
 
         if(res.success):
-            self.verboseprint ("\nSuccessfully minimized potential!\n")
+            self.verboseprint("\n")
+            if(self.verbose):
+                self.verboseputs.success("Successfully minimized potential!\n")
         else:
             print("\nOptimization failed...\n")
 
@@ -306,6 +323,12 @@ class Wetter:
                 dispVectors = md.compute_displacements(self.topol.trj, dispArray, periodic = True)[0]
 
                 for vector in dispVectors:
+                    if(np.linalg.norm(vector) < 0.1):
+                        puts.warning("Directional vector less than 0.1,"+\
+                              " will not hydrate atom with index: " +\
+                              str(center) + ". Please verify structure"+\
+                              " before using it.\n")
+                        continue
                     vector = vector/np.linalg.norm(vector)
                     tempVectors = np.vstack((tempVectors, vector))
                     sumVec += vector # Sum M-O vectors
@@ -395,7 +418,7 @@ class Wetter:
             centers = np.empty([0], dtype=int)
 
             self.verboseprint("Found " + str(len(centerIndices)) +\
-                  " centers with Nmax - 1 coordination")
+                  " centers with Nmax - 1 coordination.\n")
 
             #Calculate only for user specified fraction
             randIndices = random.sample(range(0, len(centerIndices)),\
@@ -421,7 +444,7 @@ class Wetter:
 
                 #If norm of directional vector too small
                 if(np.linalg.norm(vec) < 0.1):
-                    print("\n\nWarning: directional vector almost 0, will " +\
+                    puts.warning("Directional vector almost 0, will " +\
                           "not hydrate at atom with index: " +\
                            str(center + 1))
                     print("Probably due to symmetric center...\n")
@@ -574,7 +597,11 @@ class Wetter:
         elements = np.concatenate((watElements, hydElements))
         self.coords = coords
         self.elements = elements
+        self.verboseprint("Generating output...")
         minODist, minHDist = shortest_distance(coords, elements)
         self.verboseprint("Shortest O-O distance in solvent: " + str(minODist) + " Angstrom.")
         self.verboseprint("Shortest H-H distance in solvent: " + str(minHDist) + " Angstrom.\n")
         return coords, elements
+
+    def append_atoms(self, fileWet, resname = 'SOL'):
+        append_atoms(file = fileWet, coords = self.coords, elements = self.elements, resname = resname)
