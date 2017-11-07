@@ -23,13 +23,13 @@ This module handles writing and reading from the supplied .pdb file. It also han
 Install radish
 
 ### Usage:
-There are two mandatory inputs: a file in pdb format containing the system of interest and a config file.
+There is one mandatory input: a file in pdb format containing the system of interest and a config file.
 ```
-python main.py config.wet pdf-file.pdb
+./main.py pdffile.pdb -c config.wet
 ```
 optional flags:
 ```
--v (verbose) (do not remove lower coordinated) (failsafe) (log)
+-v (verbose) -o (ouput filename)
 ```
 ### Example run
 
