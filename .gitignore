@@ -7,11 +7,12 @@
 *.DS_Store
 .AppleDouble
 .LSOverride
-
+*.html
+*.c
 *.pdb
 *.xyz
 *.psf
-
+/temp
 # Icon must end with two \r
 Icon
 
