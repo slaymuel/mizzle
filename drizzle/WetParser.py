@@ -50,7 +50,13 @@ def get_max_coordination(element):
     """
 
     foundMax = False
-    f = open("drizzle/MaxCoordinations.data")
+
+    import os
+    import WetParser
+
+    maxNf = os.path.join(os.path.dirname(WetParser.__file__), "MaxCoordinations.data")
+    f = open(maxNf)
+    
     content = f.readlines()
     f.close()
     for line in content:
@@ -60,4 +66,6 @@ def get_max_coordination(element):
             foundMax = True
             return maxCoordination
     if(not foundMax):
-        raise ValueError("Could not find maximum coordination number for \"" + element + "\" in MaxCoordinations.lib")
+        raise ValueError(("Could not find maximum coordination number for "
+                          " {} element in {}.".format(element, maxNf)))
+    
