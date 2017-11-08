@@ -5,7 +5,8 @@ atom Ti: surface
     hydroxyl: 0
 
 atom Ti: defect
-    fraction: 1
+    water: 0.5
+    hydroxyl: 0.5
 
 resname: HYD
 end

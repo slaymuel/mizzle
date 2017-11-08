@@ -214,9 +214,12 @@ class Wetter:
                         jac = potential.potential_c_jac,
                         method = 'L-BFGS-B',
                         callback = self.show_progress,
-                        options={'disp': False, 'gtol': 1e-05, 'iprint': 0,\
-                                 'eps': 1.4901161193847656e-05,\
+                        options={'disp': False, 'gtol': 1e-5, 'iprint': 0,\
+                                 'eps': 1.4901161193847656e-5,\
                                  'maxiter': 500})
+                        # options={'disp': False, 'gtol': 1e-5, 'iprint': 0,\
+                        #          'eps': 1.4901161193847656e-5,\
+                        #          'ftol' : myfactr * np.finfo(float).eps})
 
         if(res.success):
             self.verboseprint("\n")
@@ -304,7 +307,7 @@ class Wetter:
             coordinates = np.empty([0, 3], dtype = float)
 
             randIndices = random.sample(range(0, len(centerIndices)),
-                                        int(OH_frac*\
+                                        int((OH_frac+OH2_frac)*\
                                         float(len(centerIndices))))
             indices = centerIndices[randIndices]
 
@@ -527,23 +530,34 @@ class Wetter:
                                            O_frac, OH_frac, OH2_frac,
                                            element)
 
+            randIndices = random.sample(range(0, len(coords)),\
+                                        int((OH_frac)*\
+                                            float(len(coords))))
+            #indices = coords[randIndices]
+            self.hydCoords = np.vstack((self.hydCoords, coords[randIndices]))
+            self.hydVectors = np.vstack((self.hydVectors, vectors[randIndices]))
+            self.hydCenters = np.hstack((self.hydCenters, centers[randIndices]))
+            mask = np.ones(len(coords), np.bool)
+            mask[randIndices] = 0
+            self.watCoords = np.vstack((self.watCoords, coords[mask]))
+            self.watVectors = np.vstack((self.watVectors, vectors[mask]))
+            self.watCenters = np.hstack((self.watCenters, centers[mask]))
+
             # Take every other element as hydroxyl and the others as water since
             # each 4-coordinated metal site should have one water and one 
             # hydroxyl
-            self.hydCoords = np.vstack((self.hydCoords, coords[::2]))
-            self.hydVectors = np.vstack((self.hydVectors, vectors[::2]))
-            self.hydCenters = np.hstack((self.hydCenters, centers[::2]))
-            self.watCoords = np.vstack((self.watCoords, coords[1::2]))
-            self.watVectors = np.vstack((self.watVectors, vectors[1::2]))
-            self.watCenters = np.hstack((self.watCenters, centers[1::2]))
+            # self.hydCoords = np.vstack((self.hydCoords, coords[::2]))
+            # self.hydVectors = np.vstack((self.hydVectors, vectors[::2]))
+            # self.hydCenters = np.hstack((self.hydCenters, centers[::2]))
+            # self.watCoords = np.vstack((self.watCoords, coords[1::2]))
+            # self.watVectors = np.vstack((self.watVectors, vectors[1::2]))
+            # self.watCenters = np.hstack((self.watCenters, centers[1::2]))
 
         else:
             raise ValueError('Can only hydrate Nmax - 1 and Nmax - 2 centers.\
                              You tried to hydrate ' + str(Nmax) + ' - ' +\
                              str(coordination-Nmax) + ' centers. To solve this\
                                                        issue edit config.wet.')
-
-        return vectors, coords, centers
 
 
     def optimize(self):
@@ -601,7 +615,6 @@ class Wetter:
         minODist, minHDist = shortest_distance(coords, elements)
         self.verboseprint("Shortest O-O distance in solvent: " + str(minODist) + " Angstrom.")
         self.verboseprint("Shortest H-H distance in solvent: " + str(minHDist) + " Angstrom.\n")
-        return coords, elements
 
     def append_atoms(self, fileWet, resname = 'SOL'):
         append_atoms(file = fileWet, coords = self.coords, elements = self.elements, resname = resname)

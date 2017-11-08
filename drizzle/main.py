@@ -131,7 +131,9 @@ def main(argv=None):
             waterFrac = float(atom.get('water', None))
 
         elif(coordination == 'defect'):
-            fraction = float(atom.get('fraction', None))
+            dHydroxylFrac = float(atom.get('hydroxyl', None))
+            dWaterFrac = float(atom.get('water', None))
+
         print(" " + atom.get('element') + "\t    " + \
               str(atom.get('coordination')) + "\t     " + str(hydroxylFrac) +\
                "\t      " + str(waterFrac) + "\t         " + str(Nmax))
@@ -149,7 +151,7 @@ def main(argv=None):
     wet.solvate({'Nmax': Nmax, 'element': element, 'coordination': Nmax - 1,\
                  'OH': hydroxylFrac, 'OH2': waterFrac, 'O':0.05})
     wet.solvate({'Nmax': Nmax, 'element': element, 'coordination': Nmax - 2,\
-                 'OH': fraction, 'OH2': 0, 'O':0.1})
+                 'OH': dHydroxylFrac, 'OH2': dWaterFrac, 'O':0.1})
     wet.optimize()	#Run minimization
     #coords, elements = wet.wet() #Get lists of coordinates and elements
     wet.wet()

@@ -114,8 +114,8 @@ def potential_c(np.ndarray[np.float64_t, ndim=1] solvateCoords,
                             (solvateCoords[r*3+2] -\
                             tempNeighbour[2])**2)**(1./2)
 
-                if(distance != 0.0):
-                    sumPot += 1/(distance**4)
+                #if(distance != 0.0):
+                sumPot += 1/(distance**4)
         i += 1
     return sumPot
 
@@ -204,11 +204,11 @@ def potential_c_jac(np.ndarray[np.float64_t, ndim=1] solvateCoords,
                 jac[3*i+1] += (-4)*(solvateCoords[3*i+1] - tempNeighbour[1])/denom
                 jac[3*i+2] += (-4)*(solvateCoords[3*i+2] - tempNeighbour[2])/denom
 
-                denom = ((tempNeighbour[0] - solvateCoords[3*i])**2 +\
-                         (tempNeighbour[1] - solvateCoords[3*i+1])**2 +\
-                         (tempNeighbour[2] - solvateCoords[3*i+2])**2)**3
+                #denom = ((tempNeighbour[0] - solvateCoords[3*i])**2 +\
+                #         (tempNeighbour[1] - solvateCoords[3*i+1])**2 +\
+                #         (tempNeighbour[2] - solvateCoords[3*i+2])**2)**3
 
-                jac[3*i] += 4*(tempNeighbour[0] - solvateCoords[3*i])/denom
-                jac[3*i+1] += 4*(tempNeighbour[1] - solvateCoords[3*i+1])/denom
-                jac[3*i+2] += 4*(tempNeighbour[2] - solvateCoords[3*i+2])/denom
+                #jac[3*i] += 4*(tempNeighbour[0] - solvateCoords[3*i])/denom
+                #jac[3*i+1] += 4*(tempNeighbour[1] - solvateCoords[3*i+1])/denom
+                #jac[3*i+2] += 4*(tempNeighbour[2] - solvateCoords[3*i+2])/denom
     return jac      
