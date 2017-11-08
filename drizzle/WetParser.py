@@ -48,7 +48,7 @@ def parse(file):
             break
 
         i += 1
-
+    #assert()
     return atoms, resname
 
 def get_max_coordination(element):

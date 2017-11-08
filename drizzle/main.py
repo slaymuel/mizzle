@@ -34,7 +34,8 @@ It is also possible to directly import the Wetter module.
 'OH': fraction, 'OH2': 0, 'O':0.1})
         wet.maximize_distance()
         wet.wet()
-        we.save()
+        wet.append_atoms(fileWet, resname)
+        wet.save()
 
 """
 
