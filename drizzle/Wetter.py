@@ -61,6 +61,7 @@ import sys
 from timeit import default_timer as timer
 import pyximport; pyximport.install()
 import mdtraj as md
+from IPython import embed
 
 #'Name of program' imports
 import potential
@@ -297,11 +298,12 @@ class Wetter:
 
         centerIndices, neighbourgraph = self.get_center_neighbours(\
                                             coordination, center)
-
+        
         if(len(centerIndices) > 0):
             centers = np.empty([0], dtype=int)
-            self.verboseprint("Found " + str(len(centerIndices)) +\
-                " centers with Nmax - 2 coordination\n")
+            self.verboseprint(("Found {} centers that are Nmax - 2 = {}-fold "
+                               "coordinated\n".format(len(centerIndices),coordination)))
+
 
             vectors = np.empty([0, 3], dtype = float)
             coordinates = np.empty([0, 3], dtype = float)
@@ -420,8 +422,8 @@ class Wetter:
         if(len(centerIndices) > 0): # If there are any Nmax-1 centers
             centers = np.empty([0], dtype=int)
 
-            self.verboseprint("Found " + str(len(centerIndices)) +\
-                  " centers with Nmax - 1 coordination.\n")
+            self.verboseprint(("Found {} centers that are Nmax - 1 = {}-fold "
+                               "coordinated.\n".format(len(centerIndices), coordination)))
 
             #Calculate only for user specified fraction
             randIndices = random.sample(range(0, len(centerIndices)),\
