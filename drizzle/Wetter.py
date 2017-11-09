@@ -645,9 +645,10 @@ class Wetter:
         self.elements = elements
         self.verboseprint("Generating output...")
 
-        minODist, minHDist = shortest_distance(coords, elements)
+        minODist, minHDist, minStructDist = shortest_distance(coords, elements, self.topol.trj.xyz[0]*10)
         self.verboseprint("Shortest O-O distance in solvent: " + str(minODist) + " Angstrom.")
-        self.verboseprint("Shortest H-H distance in solvent: " + str(minHDist) + " Angstrom.\n")
+        self.verboseprint("Shortest H-H distance in solvent: " + str(minHDist) + " Angstrom.")
+        self.verboseprint("Shortest distance between solvent and structure: " + str(minStructDist) + " Angstrom.\n")
 
     def remove_low_coordinated(self, Nmax, element):
         self.topol = remove_low_coordinated(self.topol, Nmax, element, self.silent)

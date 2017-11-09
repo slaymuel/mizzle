@@ -9,30 +9,42 @@ ctypedef np.float_t FTYPE_t
 ctypedef np.int_t ITYPE_t
 @cython.cdivision(True)
 
-def shortest_distance(np.ndarray[np.float64_t, ndim=2] coords, np.ndarray elements):
+def shortest_distance(np.ndarray[np.float64_t, ndim=2] solvCoords, np.ndarray elements, np.ndarray[np.float32_t, ndim=2] structCoords):
     cdef int i = 0
     cdef int j = 0
+    cdef int k = 0
     cdef double minODist = 9999.999
     cdef double minHDist = 9999.999
+    cdef double minStructDist = 9999.999
     cdef double distance = 0
 
-    while i < len(coords):
+    while i < len(solvCoords):
         j = i + 1
-        while j < len(coords):
+        while j < len(solvCoords):
             if(elements[i] == 'O' and elements[j] == 'O'):
-                distance = ((coords[i][0] - coords[j][0])**2 + \
-                            (coords[i][1] - coords[j][1])**2 + \
-                            (coords[i][2] - coords[j][2])**2)**(1.0/2)
+                distance = ((solvCoords[i][0] - solvCoords[j][0])**2 + \
+                            (solvCoords[i][1] - solvCoords[j][1])**2 + \
+                            (solvCoords[i][2] - solvCoords[j][2])**2)**(1.0/2)
                 if(distance < minODist):
                     minODist = distance
 
             elif(elements[i] == 'H' and elements[j] == 'H'):
-                distance = ((coords[i][0] - coords[j][0])**2 + \
-                            (coords[i][1] - coords[j][1])**2 + \
-                            (coords[i][2] - coords[j][2])**2)**(1.0/2)
+                distance = ((solvCoords[i][0] - solvCoords[j][0])**2 + \
+                            (solvCoords[i][1] - solvCoords[j][1])**2 + \
+                            (solvCoords[i][2] - solvCoords[j][2])**2)**(1.0/2)
                 if(distance < minHDist):
                     minHDist = distance
 
             j += 1
         i += 1
-    return minODist, minHDist
+    i = 0
+    while i < len(solvCoords):
+        while k < len(structCoords):
+            distance = ((solvCoords[i][0] - structCoords[k][0])**2 + \
+                (solvCoords[i][1] - structCoords[k][1])**2 + \
+                (solvCoords[i][2] - structCoords[k][2])**2)**(1.0/2)
+            if(distance < minStructDist):
+                minStructDist = distance
+            k += 1
+        i += 1
+    return minODist, minHDist, minStructDist
