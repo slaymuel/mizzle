@@ -213,7 +213,7 @@ class Wetter:
                         args = (centers, self.topol, centerNeighbours,\
                                 centerNumNeighbours, self.boxVectors),
                         jac = potential.potential_c_jac,
-                        method = 'L-BFGS-B',
+                        method = 'SLSQP',
                         callback = self.show_progress,
                         options={'disp': False, 'gtol': 1e-5, 'iprint': 0,\
                                  'eps': 1.4901161193847656e-5,\
