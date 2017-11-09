@@ -234,3 +234,4 @@ def remove_low_coordinated(topol, Nmax, element, verbose):
         topol.topologize()
         #except ValueError:
         #    raise ValueError("Incompatible structure: Failed to remove low coordinated atoms. The input structure seems flawed.")
+        
