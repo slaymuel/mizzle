@@ -239,7 +239,6 @@ class Wetter:
                                 centerNumNeighbours, self.boxVectors),
                         jac = potential.potential_c_jac,
                         method = 'SLSQP',
-                        #method = 'L-BFGS-B',
                         callback = self.show_progress,
                         #options={'disp': False, 'gtol': 1e-5, 'iprint': 0,\
                         #         'eps': 1.4901161193847656e-5,\
@@ -285,20 +284,21 @@ class Wetter:
             neighbourgraph if any atoms found, empty otherwise
         """
 
-        try:
-            centerIndices = self.topol.extract(center, environment =
-                {'O': coordination}).index.get_level_values(1)
+        #try:
+        centerIndices = self.topol.extract(center, environment =
+                                           {'O': coordination})\
+                                         .filter("i").squeeze()
 
-            neighbourgraph = self.topol.bondgraph.loc[self.topol.\
+        neighbourgraph = self.topol.bondgraph.loc[self.topol.\
                 bondgraph['j'].isin(centerIndices)].\
                 sort_values(['j'])[['i', 'j']].pivot(columns= 'j').\
                 apply(lambda x: pd.Series(x.dropna().values)).\
                 apply(np.int64)['i']
 
-            return (centerIndices, neighbourgraph)
+        return (centerIndices, neighbourgraph)
 
-        except IndexError:  #If no atoms found, extract() throws IndexError
-            return [], []
+        #except IndexError:  #If no atoms found, extract() throws IndexError
+        #    return [], []
 
 
     def calculate_pair_vectors(self, coordination, O_frac,\
