@@ -180,7 +180,7 @@ def remove_low_coordinated(topol, Nmax, element, verbose):
             centerIndices = topol.extract(element, environment = {'O': Nmax - i})\
                                  .filter("i").squeeze()
 
-            indices.extend(centerIndices)
+            indices.extend(np.atleast_1d(centerIndices))
             # If no indices found Topologizer throws IndexError
             #except IndexError:
             #    pass
@@ -192,7 +192,7 @@ def remove_low_coordinated(topol, Nmax, element, verbose):
             #try:
             oxygenIndices = topol.extract('O', environment={element: i})\
                                  .filter("i").squeeze()
-            indices.extend(oxygenIndices)
+            indices.extend(np.atleast_1d(oxygenIndices))
 
             #except IndexError:
             #    pass
