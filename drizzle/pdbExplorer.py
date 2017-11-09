@@ -126,20 +126,8 @@ def append_atoms(file, resname, coords=[], elements = [], ):
 
         print("Added " + str(len(coords)) + " atoms to " + fileName)
 
-    # mdtraj doesnt like xyz so no use
-    elif(fileExt == "xyz"):
-        i = 0
-        file = open(file, 'w')
-        file.write(content)
-        for element in elements:
-            file.write("%s\n" % element + "   " + float_format(coord[0]) +\
-                       "   " + float_format(coord[1]) + "   " +\
-                       float_format(coord[2]))
-            i += 1
-        file.close()
 
-
-def remove_low_coordinated(topol, Nmax, element, verbose):
+def remove_low_coordinated(topol, Nmax, element, silent):
     """Removes low coordinated (<Nmax-3) atoms
 
     Parameters
@@ -159,7 +147,7 @@ def remove_low_coordinated(topol, Nmax, element, verbose):
         radish.Topologizer instance with low coordinated atoms removed
     """
 
-    verboseprint = print if verbose else lambda *a, **k: None
+    verboseprint = print if not silent else lambda *a, **k: None
     topol.topologize()
     verboseprint("\nRemoving low coordinated atoms....")
 

@@ -10,12 +10,13 @@ Usage::
 
 Example config file::
 
-    atom Ti: high coordinated
-    water: 0.5
-    hydroxyl: 0.5
+    atom Ti: surface
+    water: 1.0
+    hydroxyl: 0.0
 
-    atom Ti: low coordinated
-        fraction: 1
+    atom Ti: defect
+        water: 0.5
+        hydroxyl: 0.5
     end
 
 Notes
@@ -43,7 +44,6 @@ from radish import Topologizer
 import sys
 import argcomplete
 import argparse
-from shutil import copyfile
 from timeit import default_timer as timer
 import numpy as np
 import os
@@ -55,6 +55,7 @@ from WetParser import get_max_coordination
 from pdbExplorer import remove_low_coordinated
 from pdbExplorer import append_atoms
 from Wetter import Wetter
+import WetParser
 
 class CustomFormatter(argparse.ArgumentDefaultsHelpFormatter,
                       argparse.RawDescriptionHelpFormatter):
@@ -69,16 +70,16 @@ def main(argv=None):
                                        formatter_class=CustomFormatter)
     
     # Options
-    argparser.add_argument("-v", "--verbose", action="store_true",
-                            help="Be loud and noisy")
+    argparser.add_argument("-s", "--silent", action="store_true",
+                            help="Silence is golden")
 
     argparser.add_argument("coords", metavar="pdb", default="input.pdb",
                             help="Input: Structure file in pdb format")
-    argparser.add_argument("-c", "--conf", default="config.wet",
+    argparser.add_argument("-c", "--conf", default=os.path.join(os.path.dirname(WetParser.__file__), "config.wet"),
                            help="Input: Config file")
     argparser.add_argument("-o", "--out", default=None,
                            help="Output: Hydrated structure")
-
+    
     # Parse arguments
     argcomplete.autocomplete(argparser)
     args = argparser.parse_args()
@@ -90,15 +91,6 @@ def main(argv=None):
     else:
         root,ext = os.path.splitext(args.coords)
         fileWet = "{}{}{}".format(root, "_wet", ext)
-
-    copyfile(args.coords, fileWet)
-
-    topol = Topologizer.from_coords(args.coords)
-
-    if topol.trj.unitcell_lengths is None:
-        raise RuntimeError("No box vectors in PDB file")
-    else:
-        boxVectors = 10*topol.trj.unitcell_lengths.reshape(-1).astype(float)
 
     # Call WetParser to parse config file
     atoms, resname = parse(args.conf)
@@ -120,28 +112,29 @@ def main(argv=None):
         if coordination == "surface":
             hydroxylFrac = float(atom.get("hydroxyl", None))
             waterFrac = float(atom.get("water", None))
+            print (" " + atom.get('element') + "\t    " + \
+                   str(atom.get('coordination')) + "\t     " +\
+                   str(hydroxylFrac) + "\t      " + str(waterFrac) +\
+                   "\t         " + str(Nmax))
         elif coordination == "defect":
             dHydroxylFrac = float(atom.get('hydroxyl', None))
             dWaterFrac = float(atom.get('water', None))
+            print (" " + atom.get('element') + "\t    " + \
+                   str(atom.get('coordination')) + "\t     " + \
+                   str(dHydroxylFrac) + "\t      " + str(dWaterFrac) + \
+                   "\t         " + str(Nmax))
         else:
             raise ValueError("Unknown keyword {}".format(coordination))
-        print (" " + atom.get('element') + "\t    " + \
-              str(atom.get('coordination')) + "\t     " + str(hydroxylFrac) +\
-               "\t      " + str(waterFrac) + "\t         " + str(Nmax))
 
     print("Solvate residues will be named: " + resname)
-    
-    # Remove reactive atoms with low coordination ( > Nmax - 2)
-    newtopol = remove_low_coordinated(topol, Nmax, element, args.verbose)
-
-    # Save new pdb file (remove later but needed for now by pdbExplorer)
-    newtopol.trj.save(fileWet, force_overwrite = True)
 
     ### RUN ALGORITHM ###
 
     # Create Wetter object
-    wet = Wetter(args.verbose, newtopol, boxVectors)
-    # Solvate
+    wet = Wetter(args.silent, args.coords)
+    wet.remove_low_coordinated(Nmax, element)
+
+    # Specify which types of atoms that should be hydrated
     wet.solvate({"Nmax": Nmax, "element": element, "coordination": Nmax - 1,\
                  "OH": hydroxylFrac, "OH2": waterFrac, "O": 0.05})
     wet.solvate({"Nmax": Nmax, "element": element, "coordination": Nmax - 2,\
@@ -149,13 +142,10 @@ def main(argv=None):
 
     # Run minimization
     wet.optimize()
-    
-    #coords, elements = wet.wet() #Get lists of coordinates and elements
+
+    #Create atoms and append to file
     wet.wet()
-    wet.append_atoms(fileWet, resname)
-    
-    #Append atoms to pdbFile
-    #append_atoms(file = fileWet, coords = coords, elements = elements)
+    wet.save(fileWet, resname)
 
 if __name__ == "__main__":
     sys.exit(main())

@@ -53,7 +53,6 @@ from __future__ import print_function
 import numpy as np
 import pandas as pd
 import random
-from pyquaternion import Quaternion
 from radish import Topologizer
 from tqdm import tqdm
 from scipy.optimize import minimize
@@ -62,11 +61,12 @@ from timeit import default_timer as timer
 import pyximport; pyximport.install()
 import mdtraj as md
 from IPython import embed
-
+from scipy.optimize.optimize import _approx_fprime_helper
 #'Name of program' imports
 import potential
 import ghosts
 from pdbExplorer import append_atoms
+from pdbExplorer import remove_low_coordinated
 import AtomCreator
 from overlap import shortest_distance
 from puts import puts
@@ -79,7 +79,7 @@ if sys.version_info[0] == 2:
 
 class Wetter:
 
-    def __init__(self, verbose, topol, boxVectors,theta=104.5, MOBondlength=2.2,\
+    def __init__(self, silent, topol,theta=104.5, MOBondlength=2.2,\
                  HOHBondlength=1, OHBondlength=1):
 
         self.hydVectors = np.empty([0, 3], dtype=float)
@@ -103,28 +103,47 @@ class Wetter:
         self.lowFrac = 1
         self.highWaterFrac = 1
         self.highHydroxylFrac = 1
-        self.boxVectors = boxVectors
-        self.verbose = verbose
+        self.silent = silent
         #Use radish (RAD-algorithm) to compute the coordination of each atom
-        self.topol = topol
+        self.topol = Topologizer.from_coords(topol)
+
+        if self.topol.trj.unitcell_lengths is None:
+            raise RuntimeError("No box vectors in PDB file")
+        else:
+            self.boxVectors = 10*self.topol.trj.unitcell_lengths.reshape(-1).astype(float)
 
         #Format float precision(will remove from here later maybe....)
         self.float_format = lambda x: "%.3f" % x
 
         #Set up verbose print function
-        self.verboseprint = print if verbose else lambda *a, **k: None
-        self.verboseputs = puts if verbose else lambda *a, **k: None
+        self.verboseprint = print if not silent else lambda *a, **k: None
+        self.verboseputs = puts if not silent else lambda *a, **k: None
         self.i = 0
         self.potTime = None
         self.jacPotTime = None
+        self.start = None
+        self.end = None
+
+        #temp
+        self.centers = None
+        self.centerNeighbours = None
+        self.centerNumNeighbours = None
 
     def show_progress(self, x):
+        #jac = potential.potential_c_jac(x, self.centers, self.topol,\
+        #                          self.centerNeighbours, self.centerNumNeighbours, self.boxVectors)
+        #print(np.linalg.norm(jac))
+        self.end = timer()
         self.i += 1
         if(self.i % 10 == 0 or self.i == 1):
             self.verboseprint('\r', end='')
             sys.stdout.flush()
-            self.verboseprint("Maximum time left: " + str(int((500 - self.i)*self.jacPotTime + (500 - self.i)*self.potTime)) + 's', end='')
-            
+            #self.verboseprint("Maximum time left: " + str(self.end - self.start)*(500-self.i) + 's', end='')
+            self.verboseprint("Maximum time left: " + str(int((500 - self.i*2)*self.jacPotTime*2 + (500 - self.i*2)*self.potTime*2)) + 's', end='')
+        #_approx_fprime_helper(x, potential.potential_c, 1.4901161193847656e-8, args=(self.centers, self.topol, self.centerNeighbours, self.centerNumNeighbours, self.boxVectors))
+        #print(potential.potential_c_jac(x))
+        self.start = timer()
+
     def optimizer(self, coords, centers):
         """Set up for minimization scheme for the L-BFGS-B algorithm
 
@@ -154,7 +173,7 @@ class Wetter:
         M = self.topol.trj.xyz[0][centers]*10
 
         if(len(M) != len(coords)):
-            raise ValueError("Optimization failed: some solvate molecules were\
+            raise ValueError("Internal error: some solvate molecules were\
                               not assigned to a center.")        
 
         # Drops duplicates
@@ -163,7 +182,7 @@ class Wetter:
                              isin(centers)]['j'].value_counts())
         missing = len(centers) - len(centerCoordination)
 
-        # Readd removed duplicates
+        # Readd duplicates
         if(missing > 0):
             centerCoordination = np.append(centerCoordination,\
                                            centerCoordination[\
@@ -188,7 +207,12 @@ class Wetter:
             dispVectors = md.compute_displacements(self.topol.trj, dispArray, periodic = True)[0]
             centerNeighbours = np.vstack((centerNeighbours, -dispVectors*10 + self.topol.trj.xyz[0][center]*10))
 
-        #Print timings if verbose
+
+        #temp
+        self.centers = centers
+        self.centerNeighbours = centerNeighbours
+        self.centerNumNeighbours = centerNumNeighbours
+        #Time objective function
         start = timer()
         potential.potential_c(coords.flatten(), centers, self.topol,\
                               centerNeighbours, centerNumNeighbours, self.boxVectors)
@@ -209,22 +233,23 @@ class Wetter:
                           str(len(coords.flatten())) + " free variables...")
 
         # Run minimization
+        self.start = timer()
         res = minimize(potential.potential_c, coords,
                         args = (centers, self.topol, centerNeighbours,\
                                 centerNumNeighbours, self.boxVectors),
                         jac = potential.potential_c_jac,
-                        method = 'L-BFGS-B',
+                        method = 'SLSQP',
+                        #method = 'L-BFGS-B',
                         callback = self.show_progress,
-                        options={'disp': False, 'gtol': 1e-5, 'iprint': 0,\
-                                 'eps': 1.4901161193847656e-5,\
-                                 'maxiter': 500})
-                        # options={'disp': False, 'gtol': 1e-5, 'iprint': 0,\
-                        #          'eps': 1.4901161193847656e-5,\
-                        #          'ftol' : myfactr * np.finfo(float).eps})
-
+                        #options={'disp': False, 'gtol': 1e-5, 'iprint': 0,\
+                        #         'eps': 1.4901161193847656e-5,\
+                        #         'maxiter': 5000})
+                        options={'disp': True, 'ftol':1e-10, 'iprint': 1,\
+                                 'eps': 1.4901161193847656e-8, 'maxiter':500})
+        print(res)
         if(res.success):
             self.verboseprint("\n")
-            if(self.verbose):
+            if(not self.silent):
                 self.verboseputs.success("Successfully minimized potential!\n")
         else:
             print("\nOptimization failed...\n")
@@ -358,10 +383,8 @@ class Wetter:
                 if(len(tempVectors) == 2):
                     axis = sumVec
                     angle = np.pi/2
-                    pairVec1 = Quaternion(axis = axis,angle = angle).\
-                        rotate(pairVec1)
-                    pairVec2 = Quaternion(axis = axis,angle = angle).\
-                        rotate(pairVec2)
+                    pairVec1 = np.dot(AtomCreator.rotate_around_vec(axis, angle), pairVec1)
+                    pairVec2 = np.dot(AtomCreator.rotate_around_vec(axis, angle), pairVec2)
 
                 # Rotate the vectors towards each other
                 # (away from center of bulk)
@@ -369,15 +392,20 @@ class Wetter:
                 dotProdVec1 = np.dot(sumVec, pairVec1)
                 dotProdVec2 = np.dot(sumVec, pairVec2)
                 if(dotProdVec1 < 0):
-                    pairVec1 = Quaternion(axis = crossProd,angle = -np.pi/7).\
-                        rotate(pairVec1)
-                    pairVec2 = Quaternion(axis = crossProd,angle = np.pi/7).\
-                        rotate(pairVec2)
+                    pairVec1 = np.dot(AtomCreator.rotate_around_vec(crossProd, np.pi/7), pairVec1)
+                    pairVec2 = np.dot(AtomCreator.rotate_around_vec(crossProd, -np.pi/7), pairVec2)
+                    #pairVec1 = Quaternion(axis = crossProd,angle = -np.pi/7).\
+                    #    rotate(pairVec1)
+                    #pairVec2 = Quaternion(axis = crossProd,angle = np.pi/7).\
+                    #    rotate(pairVec2)
                 else:
-                    pairVec2 = Quaternion(axis = crossProd,angle = -np.pi/7).\
-                        rotate(pairVec2)
-                    pairVec1 = Quaternion(axis = crossProd,angle = np.pi/7).\
-                        rotate(pairVec1)
+                    angle = -np.pi/7
+                    pairVec1 = np.dot(AtomCreator.rotate_around_vec(crossProd, np.pi/7), pairVec1)
+                    pairVec2 = np.dot(AtomCreator.rotate_around_vec(crossProd, -np.pi/7), pairVec2)
+                    #pairVec2 = Quaternion(axis = crossProd,angle = -np.pi/7).\
+                    #    rotate(pairVec2)
+                    #pairVec1 = Quaternion(axis = crossProd,angle = np.pi/7).\
+                    #    rotate(pairVec1)
 
                 # Calculate coordinates
                 coord1 = self.topol.trj.xyz[0][center]*10 +\
@@ -531,11 +559,13 @@ class Wetter:
                                            coordination,\
                                            O_frac, OH_frac, OH2_frac,
                                            element)
+            if(np.isnan(coords).any()):
+                raise ValueError("Some coordinates are NaN, aborting....")
 
             randIndices = random.sample(range(0, len(coords)),\
                                         int((OH_frac)*\
                                             float(len(coords))))
-            #indices = coords[randIndices]
+
             self.hydCoords = np.vstack((self.hydCoords, coords[randIndices]))
             self.hydVectors = np.vstack((self.hydVectors, vectors[randIndices]))
             self.hydCenters = np.hstack((self.hydCenters, centers[randIndices]))
@@ -614,9 +644,14 @@ class Wetter:
         self.coords = coords
         self.elements = elements
         self.verboseprint("Generating output...")
+
         minODist, minHDist = shortest_distance(coords, elements)
         self.verboseprint("Shortest O-O distance in solvent: " + str(minODist) + " Angstrom.")
         self.verboseprint("Shortest H-H distance in solvent: " + str(minHDist) + " Angstrom.\n")
 
-    def append_atoms(self, fileWet, resname = 'SOL'):
+    def remove_low_coordinated(self, Nmax, element):
+        self.topol = remove_low_coordinated(self.topol, Nmax, element, self.silent)
+
+    def save(self, fileWet, resname = 'SOL'):
+        self.topol.trj.save(fileWet, force_overwrite = True)
         append_atoms(file = fileWet, coords = self.coords, elements = self.elements, resname = resname)

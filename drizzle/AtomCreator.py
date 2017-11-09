@@ -1,7 +1,6 @@
 """Creates and alignes solvate coordinates to metal centers
 """
 
-from pyquaternion import Quaternion
 import numpy as np
 import random
 
@@ -27,6 +26,44 @@ def xRotate(vector, angle):
     dotProd = np.dot(rotMatrix, vector)
     return (dotProd)
 
+def skew(v):
+    vecs = np.atleast_2d(v)
+
+    # Number of vectors
+    N = len(vecs)
+
+    # Create skew matrix
+    S = np.array([[np.zeros(N), -vecs[:,2], vecs[:,1]],
+                  [vecs[:,2], np.zeros(N), -vecs[:,0]],
+                  [-vecs[:,1], vecs[:,0], np.zeros(N)]])
+    # Roll back axis
+    S = np.rollaxis(S, -1)
+
+    return S
+
+def rotate_around_vec(axis, angle):
+    #mag = np.linalg.norm(vec)
+    #vec = vec/mag
+    theta = np.atleast_1d(angle)
+    u = np.atleast_2d(axis)
+    u = np.resize(u, len(theta)*3).reshape(-1,3)
+
+    assert theta.ndim == 1
+
+    # As unit vectors
+    u = u/np.linalg.norm(u, axis=1, keepdims=True)
+
+    # Build rotation matrix
+    I  = np.einsum("n,ab->nab", np.cos(theta), np.eye(3))
+    ux = np.einsum("n,nab->nab", np.sin(theta), skew(u))
+    uu = np.einsum("n,na,nb->nab", 1 - np.cos(theta), u, u)
+
+    R = I + ux + uu
+
+    # rotMatrix = np.array([[np.cos(theta)+vec[0]**2(1-np.cos(theta)), vec[0]*vec[1](1-np.cos(theta))-vec[2]*np.sin(theta), vec[0]*vec[2](1-np.cos(theta))+vec[1]*np.sin(theta)],
+    #                   [vec[0]*vec[1](1-np.cos(theta))+vec[2]*np.sin(theta), np.cos(theta)+vec[1]**2(1-np.cos(theta)), 2*vec[1]*vec[2]],
+    #                   [2*vec[0]*vec[2], 2*vec[1]*vec[2], np.cos(theta)+vec[2]**2(1-np.cos(theta))]])
+    return R[0]
 
 def align(vec1, vec2):
     """Aligns one vector to another
@@ -145,8 +182,8 @@ def add_hydroxyl(coords, vectors, theta):
 
         axis = vectors[i]
         randAngle = random.uniform(0.1, 2*np.pi)
-        H = Quaternion(axis=axis,angle=randAngle).rotate(H)
-
+        #H = Quaternion(axis=axis,angle=randAngle).rotate(H)
+        H = np.dot(rotate_around_vec(axis, randAngle), H)
         #Translate to correct coordinates
         transVector = [coords[i][0] - O[0], coords[i][1] - O[1],\
                                             coords[i][2] - O[2]]
@@ -205,9 +242,12 @@ def add_water(coords, vectors, theta):
 
         axis = vectors[i]
         randAngle = random.uniform(0.1, 2*np.pi)
+        H1 = np.dot(rotate_around_vec(axis, randAngle), H1)
+        H2 = np.dot(rotate_around_vec(axis, randAngle), H2)
         #O = Quaternion(axis=axis,angle=theta).rotate(O)
-        H1 = Quaternion(axis=axis,angle=randAngle).rotate(H1)
-        H2 = Quaternion(axis=axis,angle=randAngle).rotate(H2)
+        #H1 = Quaternion(axis=axis,angle=randAngle).rotate(H1)
+        #H2 = Quaternion(axis=axis,angle=randAngle).rotate(H2)
+
 
 
         #Translate to correct coordinates
@@ -231,30 +271,5 @@ def add_water(coords, vectors, theta):
         atoms = np.vstack((atoms, H2))
         elements.extend('H')
 
-    # numOfOverlaps = 0
-    # i = 0
-    # j = 0
-    # while i < len(atoms):
-    #     j = i + 1
-    #     while j < len(atoms):
-    #         if(overlap(atoms[i], atoms[j])):
-    #             numOfOverlaps += 1
-    #         j += 1
-    #     i += 1
-    # numOfOverlaps = numOfOverlaps - len(atoms)
-    # print(str(numOfOverlaps) +\
-    #      " overlapping atoms (probably hydrogens closer than 2)")
 
     return atoms, elements
-
-#Will also pick up hydrogens closer than 2A
-def overlap(point1, point2):
-    vector = np.array([point2[0] - point1[0], point2[1] - point1[1],\
-                                              point2[2] - point1[2]])
-    distance = np.sqrt(vector[0]**2 + vector[1]**2 + vector[2]**2)
-
-    if(distance < 2):
-        return True
-
-    else:
-        return False

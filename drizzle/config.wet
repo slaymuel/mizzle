@@ -16,5 +16,5 @@ end
 #Not currently possible to simultaneously choose multiple different metals. Will add this.
 #resname is optional
 
-# high coordinated are Nmax - 1 coordinated atoms
-# low coordinated are Nmax - 2 coordinated atoms
+# surface are Nmax - 1 coordinated atoms
+# defect are Nmax - 2 coordinated atoms
