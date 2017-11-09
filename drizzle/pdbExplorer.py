@@ -176,27 +176,26 @@ def remove_low_coordinated(topol, Nmax, element, verbose):
             #print(topol.extract(element,\
             #                                  environment = {'O': Nmax - i}).\
             #                                          index.get_level_values(1))
-            try:
-                centerIndices = topol.extract(element,\
-                                              environment = {'O': Nmax - i}).\
-                                                      index.get_level_values(1)
-                indices.extend(centerIndices)
+            #try:
+            centerIndices = topol.extract(element, environment = {'O': Nmax - i})\
+                                 .filter("i").squeeze()
+
+            indices.extend(centerIndices)
             # If no indices found Topologizer throws IndexError
-            except IndexError:
-                pass
+            #except IndexError:
+            #    pass
 
             i += 1
 
         i = 0
         while i < 2:
-            try:
-                oxygenIndices = topol.extract('O',\
-                                              environment = {element: i}).\
-                                                   index.get_level_values(1)
-                indices.extend(oxygenIndices)
+            #try:
+            oxygenIndices = topol.extract('O', environment={element: i})\
+                                 .filter("i").squeeze()
+            indices.extend(oxygenIndices)
 
-            except IndexError:
-                pass
+            #except IndexError:
+            #    pass
             i += 1
 
         # Get uncoordinated atoms
