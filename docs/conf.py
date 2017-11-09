@@ -52,7 +52,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'wetter'
+project = u'mizzle'
 copyright = u'2017, Samuel Stenberg'
 author = u'Samuel Stenberg'
 

@@ -25,10 +25,10 @@ It is also possible to directly import the Wetter module.
  
     Example usage::
 
-        from Wetter import Wetter
-        from radish import Topologizer
+        from mizzle import Wetter
 
         wet = Wetter(args.verbose, newtopol)
+        wet.remove_low_coordinated(Nmax, 'element')
         wet.solvate({'Nmax': Nmax, 'element': element, 'coordination': Nmax - 1,\
 'OH': hydroxylFrac, 'OH2': waterFrac, 'O':0.05})
         wet.solvate({'Nmax': Nmax, 'element': element, 'coordination': Nmax - 2,\
@@ -44,18 +44,14 @@ from radish import Topologizer
 import sys
 import argcomplete
 import argparse
-from timeit import default_timer as timer
 import numpy as np
 import os
 from IPython import embed
 
 #"Name of program" imports
-from WetParser import parse
-from WetParser import get_max_coordination
-from pdbExplorer import remove_low_coordinated
-from pdbExplorer import append_atoms
-from Wetter import Wetter
-import WetParser
+from mizzle import WetParser
+from mizzle import pdbExplorer
+from mizzle import Wetter
 
 class CustomFormatter(argparse.ArgumentDefaultsHelpFormatter,
                       argparse.RawDescriptionHelpFormatter):
@@ -93,7 +89,7 @@ def main(argv=None):
         fileWet = "{}{}{}".format(root, "_wet", ext)
 
     # Call WetParser to parse config file
-    atoms, resname = parse(args.conf)
+    atoms, resname = WetParser.parse(args.conf)
 
     if (not resname):
         resname = "SOL"
@@ -107,7 +103,7 @@ def main(argv=None):
     print("Atom     Coordination    OH-fraction     OH2-fraction    Bulk-coordination")
     for atom in atoms:
         element = atom.get("element")
-        Nmax = get_max_coordination(element)	#Get Nmax
+        Nmax = WetParser.get_max_coordination(element)	#Get Nmax
         coordination = atom.get("coordination", None)
         if coordination == "surface":
             hydroxylFrac = float(atom.get("hydroxyl", None))
@@ -131,7 +127,7 @@ def main(argv=None):
     ### RUN ALGORITHM ###
 
     # Create Wetter object
-    wet = Wetter(args.silent, args.coords)
+    wet = Wetter(args.coords, silent = args.silent)
     wet.remove_low_coordinated(Nmax, element)
 
     # Specify which types of atoms that should be hydrated

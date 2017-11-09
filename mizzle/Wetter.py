@@ -62,9 +62,9 @@ import pyximport; pyximport.install()
 import mdtraj as md
 from IPython import embed
 from scipy.optimize.optimize import _approx_fprime_helper
-#'Name of program' imports
+
+# drizzle imports
 import potential
-import ghosts
 from pdbExplorer import append_atoms
 from pdbExplorer import remove_low_coordinated
 import AtomCreator
@@ -79,7 +79,7 @@ if sys.version_info[0] == 2:
 
 class Wetter:
 
-    def __init__(self, silent, topol,theta=104.5, MOBondlength=2.2,\
+    def __init__(self, topol, silent = False,theta=104.5, MOBondlength=2.2,\
                  HOHBondlength=1, OHBondlength=1):
 
         self.hydVectors = np.empty([0, 3], dtype=float)
