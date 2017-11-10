@@ -36,18 +36,14 @@ handles the removal of low coordinated atoms (Nmax - 3, where Nmax is the
 maximum coordination of the metal) using the remove_lower_coordinated method at
 the start of the program.
 
-# pdbExplorer
+## potential
 Contains the objective function to be optimized.
 
-### Installation instructions:
-Clone repository and then run 
+# Installation instructions:
+Clone repository and install with pip
 ```
 pip install .
 ```
-
-## Install using pip:
-
-pip install .
 
 ## Development install
 
@@ -59,21 +55,37 @@ python setup.py build_ext --inplace
 
 
 # Usage
-There is one mandatory input: a file in pdb format containing the system of
-interest and a config file.
+
+```bash
+mizzler input.pdb
+```
+optional flags:
+```
+-v (verbose) -o (ouput filename) -c (config file) --check[none, metal, all]
+```
+
+# Examples
+## Config file
+`config.wet`
+```
+    atom Ti: surface
+		water: 1.0
+		hydroxyl: 0.0
+
+    atom Ti: defect
+        water: 0.5
+        hydroxyl: 0.5
+    end
+```
 
 ```bash
 mizzler input.pdb -c config.wet
 ```
-optional flags:
-```
--v (verbose) -o (ouput filename)
-```
-# Examples
-
+will put water on all Nmax-1 coordinated Ti atoms, each Nmax-2 coordinated atom will have a 50/50 chance of being hydrated with water and/or hydroxyl.
 # Other notes
 ## Non-standard packages:
 	.numpy
+	.scipy
 	.pandas
 	.pyquaternion
 	.radish
