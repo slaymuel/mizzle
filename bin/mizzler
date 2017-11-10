@@ -33,10 +33,9 @@ It is also possible to directly import the Wetter module.
 'OH': hydroxylFrac, 'OH2': waterFrac, 'O':0.05})
         wet.solvate({'Nmax': Nmax, 'element': element, 'coordination': Nmax - 2,\
 'OH': fraction, 'OH2': 0, 'O':0.1})
-        wet.maximize_distance()
+        wet.optimize()
         wet.wet()
-        wet.append_atoms(fileWet, resname)
-        wet.save()
+        wet.save(fileWet, resname)
 
 """
 from radish import Topologizer

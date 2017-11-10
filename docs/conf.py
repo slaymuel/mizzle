@@ -121,7 +121,7 @@ html_sidebars = {
 # -- Options for HTMLHelp output ------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'wetterdoc'
+htmlhelp_basename = 'mizzledoc'
 
 
 # -- Options for LaTeX output ---------------------------------------------
@@ -148,7 +148,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'wetter.tex', u'wetter Documentation',
+    (master_doc, 'mizzle.tex', u'mizzle Documentation',
      u'Samuel Stenberg', 'manual'),
 ]
 
@@ -158,7 +158,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'wetter', u'wetter Documentation',
+    (master_doc, 'mizzle', u'mizzle Documentation',
      [author], 1)
 ]
 
@@ -169,8 +169,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'wetter', u'wetter Documentation',
-     author, 'wetter', 'One line description of project.',
+    (master_doc, 'mizzler', u'mizzle Documentation',
+     author, 'mizzle', 'One line description of project.',
      'Miscellaneous'),
 ]
 

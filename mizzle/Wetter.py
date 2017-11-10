@@ -1,6 +1,6 @@
 """Hydrates metal oxide surfaces
 
-This is the main module that contains the methods for hydration of
+This is the main module that contains the methods for the hydration of
 metal oxide surfaces.
 
 Example
@@ -48,6 +48,8 @@ Parameters
         H-O bond length in water. Default is 1
     OHBondlength : double, optional
         O-H bond length in hydroxyl, Default is 1
+    silent : bool
+        enables/disables silent mode
 """
 
 from __future__ import print_function
@@ -63,7 +65,7 @@ import mdtraj as md
 from IPython import embed
 from scipy.optimize.optimize import _approx_fprime_helper
 # mizzle imports
-from mizzle import potential,ghosts
+from mizzle import potential
 from mizzle.pdbExplorer import append_atoms,remove_low_coordinated
 import mizzle.AtomCreator as mac
 from mizzle.overlap import shortest_distance
@@ -77,20 +79,20 @@ if sys.version_info[0] == 2:
 
 class Wetter:
 
-    def __init__(self, topol, silent = False,theta=104.5, MOBondlength=2.2,\
+    def __init__(self, topol, silent = False, theta=104.5, MOBondlength=2.2,\
                  HOHBondlength=1, OHBondlength=1):
 
-        self.hydVectors = np.empty([0, 3], dtype=float)
-        self.hydCoords = np.empty([0, 3], dtype=float)
-        self.hydCenters = np.empty([0], dtype=float)
+        self.__hydVectors = np.empty([0, 3], dtype=float)
+        self.__hydCoords = np.empty([0, 3], dtype=float)
+        self.__hydCenters = np.empty([0], dtype=float)
 
-        self.watVectors = np.empty([0, 3], dtype=float)
-        self.watCoords = np.empty([0, 3], dtype=float)
-        self.watCenters = np.empty([0], dtype=float)
+        self.__watVectors = np.empty([0, 3], dtype=float)
+        self.__watCoords = np.empty([0, 3], dtype=float)
+        self.__watCenters = np.empty([0], dtype=float)
 
-        self.oxyVectors = np.empty([0, 3], dtype=float)
-        self.oxyCoords = np.empty([0, 3], dtype=float)
-        self.oxyCenters = np.empty([0], dtype=float)
+        self.__oxyVectors = np.empty([0, 3], dtype=float)
+        self.__oxyCoords = np.empty([0, 3], dtype=float)
+        self.__oxyCenters = np.empty([0], dtype=float)
 
         #Input parameters
         self.theta = theta
@@ -114,38 +116,38 @@ class Wetter:
         self.float_format = lambda x: "%.3f" % x
 
         #Set up verbose print function
-        self.verboseprint = print if not silent else lambda *a, **k: None
-        self.verboseputs = puts if not silent else lambda *a, **k: None
-        self.i = 0
-        self.potTime = None
-        self.jacPotTime = None
-        self.start = None
-        self.end = None
+        self.__verboseprint = print if not silent else lambda *a, **k: None
+        self.__verboseputs = puts if not silent else lambda *a, **k: None
+        self.__i = 0
+        self.__potTime = None
+        self.__jacPotTime = None
+        self.__start = None
+        self.__end = None
 
         #temp
         self.centers = None
         self.centerNeighbours = None
         self.centerNumNeighbours = None
 
-    def show_progress(self, x):
+    def __show_progress(self, x):
         #jac = potential.potential_c_jac(x, self.centers, self.topol,\
         #                          self.centerNeighbours, self.centerNumNeighbours, self.boxVectors)
         #print(np.linalg.norm(jac))
-        self.end = timer()
-        if(self.i % 5 == 0 or self.i == 1):
-            self.verboseprint('\r', end='')
+        self.__end = timer()
+        if(self.__i % 5 == 0 or self.__i == 1):
+            self.__verboseprint('\r', end='')
             sys.stdout.flush()
             #self.verboseprint("Maximum time left: " + str(self.end - self.start)*(500-self.i) + 's', end='')
             #self.verboseprint("Maximum time left: " + str(self.end - self.start) + str(int((500 - self.i*2)*self.jacPotTime*2 + (500 - self.i*2)*self.potTime*2)) + 's', end='')
             #self.verboseprint("Iteration: "+str(self.i)+". Maximum time left: " + str((500-self.i)*(self.end - self.start)) + 's', end='')
-            self.verboseprint("Iteration: "+str(self.i), end='')
+            self.__verboseprint("Iteration: "+str(self.__i), end='')
         #_approx_fprime_helper(x, potential.potential_c, 1.4901161193847656e-8, args=(self.centers, self.topol, self.centerNeighbours, self.centerNumNeighbours, self.boxVectors))
         #print(potential.potential_c_jac(x))
-        self.i += 1
-        self.start = timer()
+        self.__i += 1
+        self.__start = timer()
 
     def optimizer(self, coords, centers):
-        """Set up for minimization scheme for the L-BFGS-B algorithm
+        """Set up for minimization scheme for the SLSQP algorithm
 
         Parameters
         ----------
@@ -217,29 +219,29 @@ class Wetter:
         potential.potential(coords.flatten(), centers, self.topol,\
                               centerNeighbours, centerNumNeighbours, self.boxVectors)
         end = timer()
-        self.potTime = end-start
-        self.verboseprint("Potential takes: " + str(end-start) +\
+        self.__potTime = end-start
+        self.__verboseprint("Potential takes: " + str(end-start) +\
                           " seconds to calculate")
 
         start = timer()
         potential.potential_jac(coords.flatten(), centers, self.topol,\
                                   centerNeighbours, centerNumNeighbours, self.boxVectors)
         end = timer()
-        self.jacPotTime = end-start
-        self.verboseprint("Potential Jacobian takes: " + str(end-start) +\
+        self.__jacPotTime = end-start
+        self.__verboseprint("Potential Jacobian takes: " + str(end-start) +\
               " seconds to calculate\n")
 
-        self.verboseprint("Minimizing potential with " +\
+        self.__verboseprint("Minimizing potential with " +\
                           str(len(coords.flatten())) + " free variables...")
 
         # Run minimization
-        self.start = timer()
+        self.__start = timer()
         res = minimize(potential.potential, coords,
                         args = (centers, self.topol, centerNeighbours,\
                                 centerNumNeighbours, self.boxVectors),
                         jac = potential.potential_jac,
                         method = 'SLSQP',
-                        callback = self.show_progress,
+                        callback = self.__show_progress,
                         #options={'disp': False, 'gtol': 1e-5, 'iprint': 0,\
                         #         'eps': 1.4901161193847656e-5,\
                         #         'maxiter': 5000})
@@ -247,9 +249,9 @@ class Wetter:
                                  'eps': 1.4901161193847656e-8, 'maxiter':500})
 
         if(res.success):
-            self.verboseprint("\n")
+            self.__verboseprint("\n")
             if(not self.silent):
-                self.verboseputs.success("Successfully minimized potential!\n")
+                self.__verboseputs.success("Successfully minimized potential!\n")
         else:
             print("\nOptimization failed...\n")
 
@@ -266,7 +268,7 @@ class Wetter:
         return coords, vectors
 
 
-    def get_center_neighbours(self, coordination, center):
+    def __get_center_neighbours(self, coordination, center):
         """Construct neighbourgraph where columns are metal centers and rows 
         their coordination shell
 
@@ -301,7 +303,7 @@ class Wetter:
         #    return [], []
 
 
-    def calculate_pair_vectors(self, coordination, O_frac,\
+    def __calculate_pair_vectors(self, coordination, O_frac,\
                                OH_frac, OH2_frac, center):
         """Calculate coordinates for solvate on for 4-coordinated atoms
 
@@ -321,12 +323,12 @@ class Wetter:
             List of each center that each solvate belongs to
         """
 
-        centerIndices, neighbourgraph = self.get_center_neighbours(\
+        centerIndices, neighbourgraph = self.__get_center_neighbours(\
                                             coordination, center)
         
         if(len(centerIndices) > 0):
             centers = np.empty([0], dtype=int)
-            self.verboseprint(("Found {} centers that are Nmax - 2 = {}-fold "
+            self.__verboseprint(("Found {} centers that are Nmax - 2 = {}-fold "
                                "coordinated\n".format(len(centerIndices),coordination)))
 
 
@@ -429,7 +431,7 @@ class Wetter:
                     np.empty([0], dtype=int))
 
 
-    def calculate_vectors(self, coordination, O_frac,\
+    def __calculate_vectors(self, coordination, O_frac,\
                           OH_frac, OH2_frac, center):
         """ Calculate coordinates for solvate on for 5-coordinated atoms
 
@@ -444,13 +446,13 @@ class Wetter:
         vec = np.array([0,0,0])
         tempNeighbour = np.array([0,0,0])
         #Get indices for metal centers with coordination Nmax - 1
-        centerIndices, neighbourgraph = self.get_center_neighbours(\
+        centerIndices, neighbourgraph = self.__get_center_neighbours(\
                                             coordination, center)
 
         if(len(centerIndices) > 0): # If there are any Nmax-1 centers
             centers = np.empty([0], dtype=int)
 
-            self.verboseprint(("Found {} centers that are Nmax - 1 = {}-fold "
+            self.__verboseprint(("Found {} centers that are Nmax - 1 = {}-fold "
                                "coordinated.\n".format(len(centerIndices), coordination)))
 
             #Calculate only for user specified fraction
@@ -537,25 +539,25 @@ class Wetter:
         Nmax = params['Nmax']
  
         if(coordination == Nmax - 1):
-            vectors, coords, centers = self.calculate_vectors(\
+            vectors, coords, centers = self.__calculate_vectors(\
                                            coordination,\
                                            O_frac, OH_frac, OH2_frac,
                                            element)
-            self.hydCoords = np.vstack((self.hydCoords,\
+            self.__hydCoords = np.vstack((self.__hydCoords,\
                                         coords[:int(OH_frac*len(vectors))]))
-            self.hydVectors = np.vstack((self.hydVectors,\
+            self.__hydVectors = np.vstack((self.__hydVectors,\
                                          vectors[:int(OH_frac*len(vectors))]))
-            self.hydCenters = np.hstack((self.hydCenters,\
+            self.__hydCenters = np.hstack((self.__hydCenters,\
                                          centers[:int(OH_frac*len(vectors))]))
-            self.watCoords = np.vstack((self.watCoords,\
+            self.__watCoords = np.vstack((self.__watCoords,\
                                         coords[int(OH_frac*len(vectors)):]))
-            self.watVectors = np.vstack((self.watVectors,\
+            self.__watVectors = np.vstack((self.__watVectors,\
                                          vectors[int(OH_frac*len(vectors)):]))
-            self.watCenters = np.hstack((self.watCenters,\
+            self.__watCenters = np.hstack((self.__watCenters,\
                                          centers[int(OH_frac*len(vectors)):]))
 
         elif(coordination == Nmax - 2):
-            vectors, coords, centers = self.calculate_pair_vectors(\
+            vectors, coords, centers = self.__calculate_pair_vectors(\
                                            coordination,\
                                            O_frac, OH_frac, OH2_frac,
                                            element)
@@ -566,14 +568,14 @@ class Wetter:
                                         int((OH_frac)*\
                                             float(len(coords))))
 
-            self.hydCoords = np.vstack((self.hydCoords, coords[randIndices]))
-            self.hydVectors = np.vstack((self.hydVectors, vectors[randIndices]))
-            self.hydCenters = np.hstack((self.hydCenters, centers[randIndices]))
+            self.__hydCoords = np.vstack((self.__hydCoords, coords[randIndices]))
+            self.__hydVectors = np.vstack((self.__hydVectors, vectors[randIndices]))
+            self.__hydCenters = np.hstack((self.__hydCenters, centers[randIndices]))
             mask = np.ones(len(coords), np.bool)
             mask[randIndices] = 0
-            self.watCoords = np.vstack((self.watCoords, coords[mask]))
-            self.watVectors = np.vstack((self.watVectors, vectors[mask]))
-            self.watCenters = np.hstack((self.watCenters, centers[mask]))
+            self.__watCoords = np.vstack((self.__watCoords, coords[mask]))
+            self.__watVectors = np.vstack((self.__watVectors, vectors[mask]))
+            self.__watCenters = np.hstack((self.__watCenters, centers[mask]))
 
             # Take every other element as hydroxyl and the others as water since
             # each 4-coordinated metal site should have one water and one 
@@ -605,19 +607,19 @@ class Wetter:
         centers= np.empty([0], dtype=int)
 
         #Stack coordinates and centers and call optimize()
-        coords = np.vstack((coords, self.hydCoords))
-        coords = np.vstack((coords, self.watCoords))
+        coords = np.vstack((coords, self.__hydCoords))
+        coords = np.vstack((coords, self.__watCoords))
 
-        centers = np.hstack((centers, self.hydCenters.astype(int)))
-        centers = np.hstack((centers, self.watCenters.astype(int)))
+        centers = np.hstack((centers, self.__hydCenters.astype(int)))
+        centers = np.hstack((centers, self.__watCenters.astype(int)))
 
         coords, vectors = self.optimizer(coords, centers)
 
         #Set attributes to optimized values
-        self.hydCoords = coords[:len(self.hydCoords)]
-        self.hydVectors = vectors[:len(self.hydCoords)]
-        self.watCoords = coords[len(self.hydCoords):]
-        self.watVectors = vectors[len(self.hydCoords):]
+        self.__hydCoords = coords[:len(self.__hydCoords)]
+        self.__hydVectors = vectors[:len(self.__hydCoords)]
+        self.__watCoords = coords[len(self.__hydCoords):]
+        self.__watVectors = vectors[len(self.__hydCoords):]
 
 
     def wet(self):
@@ -631,24 +633,24 @@ class Wetter:
             Array containing the element symbols
         """
 
-        hydCoords, hydElements = mac.add_hydroxyl(self.hydCoords, 
-                                                  self.hydVectors, 
+        hydCoords, hydElements = mac.add_hydroxyl(self.__hydCoords, 
+                                                  self.__hydVectors, 
                                                   self.theta)
         
-        watCoords, watElements = mac.add_water(self.watCoords, 
-                                               self.watVectors, 
+        watCoords, watElements = mac.add_water(self.__watCoords, 
+                                               self.__watVectors, 
                                                self.theta)
 
         coords = np.concatenate((watCoords, hydCoords))
         elements = np.concatenate((watElements, hydElements))
         self.coords = coords
         self.elements = elements
-        self.verboseprint("Generating output...")
+        self.__verboseprint("Generating output...")
 
         minODist, minHDist, minStructDist = shortest_distance(coords, elements, self.topol.trj.xyz[0]*10)
-        self.verboseprint("Shortest O-O distance in solvent: " + str(minODist) + " Angstrom.")
-        self.verboseprint("Shortest H-H distance in solvent: " + str(minHDist) + " Angstrom.")
-        self.verboseprint("Shortest distance between solvent and structure: " + str(minStructDist) + " Angstrom.\n")
+        self.__verboseprint("Shortest O-O distance in solvent: " + str(minODist) + " Angstrom.")
+        self.__verboseprint("Shortest H-H distance in solvent: " + str(minHDist) + " Angstrom.")
+        self.__verboseprint("Shortest distance between solvent and structure: " + str(minStructDist) + " Angstrom.\n")
 
     def remove_low_coordinated(self, Nmax, element, check = 'all'):
         self.topol = remove_low_coordinated(self.topol, Nmax, element, self.silent, check)

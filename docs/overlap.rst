@@ -1,7 +1,8 @@
 overlap module
 ==================
 
-.. automodule:: overlap
+.. automodule:: mizzle.overlap
     :members:
     :undoc-members:
     :show-inheritance:
+    :noindex:

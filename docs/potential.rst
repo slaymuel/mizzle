@@ -1,7 +1,7 @@
 potential module
 ================
 
-.. automodule::potential
+.. automodule:: mizzle.potential
     :members:
     :undoc-members:
     :show-inheritance:

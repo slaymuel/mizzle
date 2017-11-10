@@ -1,8 +1,5 @@
 """Cython module with objective function
 
-This Cython module contains the objective function and the Jacobian
-
-
 Notes
 -----
 The objective function is minimized during optimization

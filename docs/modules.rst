@@ -1,13 +1,13 @@
-wetter
+mizzle
 ======
 
 .. toctree::
    :maxdepth: 4
 
-   AtomCreator
-   WetParser
    Wetter
-   main
+   AtomCreator
    pdbExplorer
-   potential
+   WetParser
    overlap
+   potential
+   puts
