@@ -64,9 +64,9 @@ def get_max_coordination(element):
     foundMax = False
 
     import os
-    import WetParser
+    import mizzle.WetParser as wp
 
-    maxNf = os.path.join(os.path.dirname(WetParser.__file__), "MaxCoordinations.data")
+    maxNf = os.path.join(os.path.dirname(wp.__file__), "MaxCoordinations.data")
     f = open(maxNf)
     
     content = f.readlines()

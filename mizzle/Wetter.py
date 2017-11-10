@@ -5,10 +5,10 @@ metal oxide surfaces.
 
 Example
 -------
-Using wetter module in existing project::
+Using Wetter module in existing project::
 
-    import Wetter
-    wet = Wetter(verbose, radish_instance)
+    import mizzle.Wetter as mw
+    wet = mw(verbose, radish_instance)
     wet.add_solvate({'Nmax': Nmax, 'element': element,\
 'coordination': coordination, 'OH': hydroxylFrac, 'OH2': waterFrac, 'O':0.05})
     wet.optimize()
@@ -58,18 +58,15 @@ from tqdm import tqdm
 from scipy.optimize import minimize
 import sys
 from timeit import default_timer as timer
-import pyximport; pyximport.install()
 import mdtraj as md
 from IPython import embed
 from scipy.optimize.optimize import _approx_fprime_helper
-#'Name of program' imports
-import potential
-import ghosts
-from pdbExplorer import append_atoms
-from pdbExplorer import remove_low_coordinated
-import AtomCreator
-from overlap import shortest_distance
-from puts import puts
+# mizzle imports
+from mizzle import potential,ghosts
+from mizzle.pdbExplorer import append_atoms,remove_low_coordinated
+import mizzle.AtomCreator as mac
+from mizzle.overlap import shortest_distance
+from mizzle.puts import puts
 
 if sys.version_info[0] == 2:
     # workaround for Sphinx autodoc bug
@@ -383,8 +380,8 @@ class Wetter:
                 if(len(tempVectors) == 2):
                     axis = sumVec
                     angle = np.pi/2
-                    pairVec1 = np.dot(AtomCreator.rotate_around_vec(axis, angle), pairVec1)
-                    pairVec2 = np.dot(AtomCreator.rotate_around_vec(axis, angle), pairVec2)
+                    pairVec1 = np.dot(mac.rotate_around_vec(axis, angle), pairVec1)
+                    pairVec2 = np.dot(mac.rotate_around_vec(axis, angle), pairVec2)
 
                 # Rotate the vectors towards each other
                 # (away from center of bulk)
@@ -392,16 +389,16 @@ class Wetter:
                 dotProdVec1 = np.dot(sumVec, pairVec1)
                 dotProdVec2 = np.dot(sumVec, pairVec2)
                 if(dotProdVec1 < 0):
-                    pairVec1 = np.dot(AtomCreator.rotate_around_vec(crossProd, np.pi/7), pairVec1)
-                    pairVec2 = np.dot(AtomCreator.rotate_around_vec(crossProd, -np.pi/7), pairVec2)
+                    pairVec1 = np.dot(mac.rotate_around_vec(crossProd, np.pi/7), pairVec1)
+                    pairVec2 = np.dot(mac.rotate_around_vec(crossProd, -np.pi/7), pairVec2)
                     #pairVec1 = Quaternion(axis = crossProd,angle = -np.pi/7).\
                     #    rotate(pairVec1)
                     #pairVec2 = Quaternion(axis = crossProd,angle = np.pi/7).\
                     #    rotate(pairVec2)
                 else:
                     angle = -np.pi/7
-                    pairVec1 = np.dot(AtomCreator.rotate_around_vec(crossProd, np.pi/7), pairVec1)
-                    pairVec2 = np.dot(AtomCreator.rotate_around_vec(crossProd, -np.pi/7), pairVec2)
+                    pairVec1 = np.dot(mac.rotate_around_vec(crossProd, np.pi/7), pairVec1)
+                    pairVec2 = np.dot(mac.rotate_around_vec(crossProd, -np.pi/7), pairVec2)
                     #pairVec2 = Quaternion(axis = crossProd,angle = -np.pi/7).\
                     #    rotate(pairVec2)
                     #pairVec1 = Quaternion(axis = crossProd,angle = np.pi/7).\
@@ -631,13 +628,13 @@ class Wetter:
             Array containing the element symbols
         """
 
-        hydCoords, hydElements = AtomCreator.add_hydroxyl(self.hydCoords, 
-                                                          self.hydVectors, 
-                                                          self.theta)
-
-        watCoords, watElements = AtomCreator.add_water(self.watCoords, 
-                                                       self.watVectors, 
-                                                       self.theta)
+        hydCoords, hydElements = mac.add_hydroxyl(self.hydCoords, 
+                                                  self.hydVectors, 
+                                                  self.theta)
+        
+        watCoords, watElements = mac.add_water(self.watCoords, 
+                                               self.watVectors, 
+                                               self.theta)
 
         coords = np.concatenate((watCoords, hydCoords))
         elements = np.concatenate((watElements, hydElements))

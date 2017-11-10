@@ -1,25 +1,27 @@
 from distutils.core import setup
 from distutils.extension import Extension
 from Cython.Distutils import build_ext
+from Cython.Build import cythonize
 import numpy
 
-ext_module = Extension(
-    "potential",
-    ["drizzle/potential.pyx"],
+ext_modules = Extension(
+    "*",
+    ["mizzle/*.pyx"],
     extra_compile_args = ["-O3", "-ffast-math", "-march=native", "-fopenmp" ],
     extra_link_args=['-fopenmp'],
     include_dirs=[numpy.get_include()],
 )
 
-setup(name='drizzle',
-      version='1.0',
+setup(name='mizzle',
+      version='0.1',
       description='Wet arbitrary metal-oxide surfaces',
       author='Samuel Stenberg',
       author_email='samuel.stenberg@hotmail.com',
       license='MIT',
-      packages=['drizzle'],
+      packages=['mizzle'],
       install_requires=['argcomplete','numpy','pandas','mdtraj','tqdm', 'scipy', 'radish'],
+      scripts=['bin/mizzler'],
       include_package_data=True,
       cmdclass = {'build_ext': build_ext},
-      ext_modules = [ext_module],
+      ext_modules = cythonize([ext_modules]),
       zip_safe=False)
