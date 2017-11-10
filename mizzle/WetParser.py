@@ -44,15 +44,18 @@ def parse(file):
             colonIndex = content[i].index(":")
             resname = content[i][colonIndex+1:].strip()
             if(len(resname) > 3):
-                raise LookupError(("Error in config file: resname is restricted to "
-                                   "3 characters"))
+                raise LookupError(("Error in config file: resname is \
+                                    restricted to 3 characters"))
 
         elif(content[i].strip() == "end"):
             break
 
         i += 1
-    #for atom in atoms:
-    #    assert float(atom.get('water', 0)) + float(atom.get('hydroxyl', 0)) == 1, "Water and hydroxyl fractions in config file does not sum to 1!"
+    for atom in atoms:
+        assert float(atom.get('water', 0)) +\
+                     float(atom.get('hydroxyl', 0)) == 1,\
+                     "Water and hydroxyl fractions in config file does\
+                      not sum to 1!"
 
     return atoms, resname
 

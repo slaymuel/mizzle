@@ -132,14 +132,16 @@ class Wetter:
         #                          self.centerNeighbours, self.centerNumNeighbours, self.boxVectors)
         #print(np.linalg.norm(jac))
         self.end = timer()
-        self.i += 1
-        if(self.i % 10 == 0 or self.i == 1):
+        if(self.i % 5 == 0 or self.i == 1):
             self.verboseprint('\r', end='')
             sys.stdout.flush()
             #self.verboseprint("Maximum time left: " + str(self.end - self.start)*(500-self.i) + 's', end='')
-            self.verboseprint("Maximum time left: " + str(int((500 - self.i*2)*self.jacPotTime*2 + (500 - self.i*2)*self.potTime*2)) + 's', end='')
+            #self.verboseprint("Maximum time left: " + str(self.end - self.start) + str(int((500 - self.i*2)*self.jacPotTime*2 + (500 - self.i*2)*self.potTime*2)) + 's', end='')
+            #self.verboseprint("Iteration: "+str(self.i)+". Maximum time left: " + str((500-self.i)*(self.end - self.start)) + 's', end='')
+            self.verboseprint("Iteration: "+str(self.i), end='')
         #_approx_fprime_helper(x, potential.potential_c, 1.4901161193847656e-8, args=(self.centers, self.topol, self.centerNeighbours, self.centerNumNeighbours, self.boxVectors))
         #print(potential.potential_c_jac(x))
+        self.i += 1
         self.start = timer()
 
     def optimizer(self, coords, centers):
@@ -241,7 +243,7 @@ class Wetter:
                         #options={'disp': False, 'gtol': 1e-5, 'iprint': 0,\
                         #         'eps': 1.4901161193847656e-5,\
                         #         'maxiter': 5000})
-                        options={'disp': True, 'ftol':1e-10, 'iprint': 1,\
+                        options={'disp': False, 'ftol':1e-10, 'iprint': 0,\
                                  'eps': 1.4901161193847656e-8, 'maxiter':500})
 
         if(res.success):
