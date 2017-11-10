@@ -112,9 +112,6 @@ class Wetter:
         else:
             self.boxVectors = 10*self.topol.trj.unitcell_lengths.reshape(-1).astype(float)
 
-        #Format float precision(will remove from here later maybe....)
-        self.float_format = lambda x: "%.3f" % x
-
         #Set up verbose print function
         self.__verboseprint = print if not silent else lambda *a, **k: None
         self.__verboseputs = puts if not silent else lambda *a, **k: None

@@ -4,7 +4,7 @@
 import numpy as np
 import random
 
-def xRotate(vector, angle):
+def __xRotate(vector, angle):
     """Rotates vector around x-axis
 
     Parameters
@@ -25,7 +25,7 @@ def xRotate(vector, angle):
     dotProd = np.dot(rotMatrix, vector)
     return (dotProd)
 
-def skew(v):
+def __skew(v):
     vecs = np.atleast_2d(v)
 
     # Number of vectors
@@ -54,7 +54,7 @@ def rotate_around_vec(axis, angle):
 
     # Build rotation matrix
     I  = np.einsum("n,ab->nab", np.cos(theta), np.eye(3))
-    ux = np.einsum("n,nab->nab", np.sin(theta), skew(u))
+    ux = np.einsum("n,nab->nab", np.sin(theta), __skew(u))
     uu = np.einsum("n,na,nb->nab", 1 - np.cos(theta), u, u)
 
     R = I + ux + uu
@@ -64,7 +64,7 @@ def rotate_around_vec(axis, angle):
     #                   [2*vec[0]*vec[2], 2*vec[1]*vec[2], np.cos(theta)+vec[2]**2(1-np.cos(theta))]])
     return R[0]
 
-def align(vec1, vec2):
+def __align(vec1, vec2):
     """Aligns one vector to another
 
     Parameters
@@ -171,10 +171,10 @@ def add_hydroxyl(coords, vectors, theta):
         #No need to rotate O since it lies on the x-axis
         angle = np.pi - np.arccos(np.cos(np.radians(115))/\
                                   np.cos(np.radians(104.5/2)))
-        H = xRotate(H, angle)
+        H = __xRotate(H, angle)
 
         #Align z axis to the directional vector
-        rotMatrix = align([0, 0, 1], vectors[i])
+        rotMatrix = __align([0, 0, 1], vectors[i])
         O = np.dot(rotMatrix, O)
         H = np.dot(rotMatrix, H)
 
@@ -229,11 +229,11 @@ def add_water(coords, vectors, theta):
         #No need to rotate O since it lies on the x and z axis
         angle = np.pi - np.arccos(np.cos(np.radians(115))/\
                                          np.cos(np.radians(104.5/2)))
-        H1 = xRotate(H1, angle)
-        H2 = xRotate(H2, angle)
+        H1 = __xRotate(H1, angle)
+        H2 = __xRotate(H2, angle)
 
         #Align z axis to the directional vector
-        rotMatrix = align([0, 0, 1], vectors[i])
+        rotMatrix = __align([0, 0, 1], vectors[i])
         #O = np.dot(rotMatrix, O)
         H1 = np.dot(rotMatrix, H1)
         H2 = np.dot(rotMatrix, H2)
