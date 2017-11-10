@@ -16,6 +16,7 @@ Welcome to wetter's documentation!
    main
    pdbExplorer
    potential
+   overlap
    modules
 
 

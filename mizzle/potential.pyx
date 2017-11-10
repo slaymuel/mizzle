@@ -9,8 +9,6 @@ The objective function is minimized during optimization
 
 """
 
-#cython: cdivision=True
-#cython: boundscheck=False, wraparound=False, nonecheck=False
 import cython
 import numpy as np
 cimport numpy as np
@@ -25,7 +23,7 @@ ctypedef np.int_t ITYPE_t
 #@cython.wraparound(False)
 #@cython.nonecheck(False)
 
-def potential_c(np.ndarray[np.float64_t, ndim=1] solvateCoords, 
+def potential(np.ndarray[np.float64_t, ndim=1] solvateCoords, 
                 np.ndarray[ITYPE_t, ndim=1] centers, 
                 object topol,
                 np.ndarray[np.float64_t, ndim=2] centerNeighbours,
@@ -121,7 +119,7 @@ def potential_c(np.ndarray[np.float64_t, ndim=1] solvateCoords,
 
 @cython.cdivision(True)
 @cython.boundscheck(False)
-def potential_c_jac(np.ndarray[np.float64_t, ndim=1] solvateCoords, 
+def potential_jac(np.ndarray[np.float64_t, ndim=1] solvateCoords, 
                 np.ndarray[ITYPE_t, ndim=1] centers, 
                 object topol,
                 np.ndarray[np.float64_t, ndim=2] centerNeighbours,

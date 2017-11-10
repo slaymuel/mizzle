@@ -4,7 +4,6 @@
 import numpy as np
 import random
 
-
 def xRotate(vector, angle):
     """Rotates vector around x-axis
 

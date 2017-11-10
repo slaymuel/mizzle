@@ -25,10 +25,10 @@ It is also possible to directly import the Wetter module.
  
     Example usage::
 
-        from drizzle import Wetter
+        from Wetter import Wetter
+        from radish import Topologizer
 
         wet = Wetter(args.verbose, newtopol)
-        wet.remove_low_coordinated(Nmax, 'element')
         wet.solvate({'Nmax': Nmax, 'element': element, 'coordination': Nmax - 1,\
 'OH': hydroxylFrac, 'OH2': waterFrac, 'O':0.05})
         wet.solvate({'Nmax': Nmax, 'element': element, 'coordination': Nmax - 2,\
@@ -39,22 +39,20 @@ It is also possible to directly import the Wetter module.
         wet.save()
 
 """
-
 from radish import Topologizer
 import sys
 import argcomplete
 import argparse
+from timeit import default_timer as timer
 import numpy as np
 import os
 from IPython import embed
 
-#"Name of program" imports
-from WetParser import parse
-from WetParser import get_max_coordination
-from pdbExplorer import remove_low_coordinated
-from pdbExplorer import append_atoms
-from Wetter import Wetter
-import WetParser
+# mizzler imports
+from mizzle.WetParser import parse,get_max_coordination
+from mizzle.pdbExplorer import remove_low_coordinated,append_atoms
+from mizzle.Wetter import Wetter
+import mizzle.WetParser as wp
 
 class CustomFormatter(argparse.ArgumentDefaultsHelpFormatter,
                       argparse.RawDescriptionHelpFormatter):
@@ -69,19 +67,19 @@ def main(argv=None):
                                        formatter_class=CustomFormatter)
     
     # Options
-    argparser.add_argument("-s", "--silent", default=False,
-                            help="Silence is golden")
+    argparser.add_argument("coords", metavar="file.pdb", default="input.pdb",
+                           help="Input: Structure file in pdb format")
+    argparser.add_argument("-c", "--conf",
+                           default=os.path.join(\
+                           os.path.dirname(wp.__file__), "config.wet"),
+                           help="Input: Config file")
+    argparser.add_argument("-o", "--out", default=None,
+                           help="Output: Hydrated structure, default: filename_wet.pdb")
+    argparser.add_argument("-s", "--silent", action="store_true",
+                           help="Param: Silence is golden")
     argparser.add_argument('--check', default='all', nargs='?',
                     choices=['none', 'metal', 'all'],
                     help='')
-    argparser.add_argument("coords", metavar="pdb", default="input.pdb",
-                            help="Input: Structure file in pdb format")
-    argparser.add_argument("-c", "--conf", default=os.path.join(\
-                           os.path.dirname(WetParser.__file__), "config.wet"),
-                           help="Input: Config file")
-    argparser.add_argument("-o", "--out", default=None,
-                           help="Output: Hydrated structure")
-    
     # Parse arguments
     argcomplete.autocomplete(argparser)
     args = argparser.parse_args()
@@ -134,7 +132,7 @@ def main(argv=None):
 
     # Create Wetter object
     wet = Wetter(args.coords, silent = args.silent)
-    wet.remove_low_coordinated(Nmax, element)
+    wet.remove_low_coordinated(Nmax, element, check=args.check)
 
     # Specify which types of atoms that should be hydrated
     wet.solvate({"Nmax": Nmax, "element": element, "coordination": Nmax - 1,\

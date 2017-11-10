@@ -1,3 +1,7 @@
+"""Calculates minimum distance between atoms
+
+"""
+
 import cython
 import numpy as np
 cimport numpy as np

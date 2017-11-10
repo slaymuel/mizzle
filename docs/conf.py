@@ -18,7 +18,7 @@
 #
 import os
 import sys
-sys.path.insert(0, u'/home/sast0643/wetter')
+sys.path.insert(0, u'/home/sast0643/mizzle/mizzle')
 # sys.path.insert(0, os.path.abspath('..'))
 # import mock
 # MOCK_MODULES = []

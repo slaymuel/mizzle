@@ -1,7 +1,7 @@
 potential module
 ================
 
-.. automodule:: potential
+.. automodule::potential
     :members:
     :undoc-members:
     :show-inheritance:

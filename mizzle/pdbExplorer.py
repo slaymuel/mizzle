@@ -127,7 +127,7 @@ def append_atoms(file, resname, coords=[], elements = [], ):
         print("Added " + str(len(coords)) + " atoms to " + fileName)
 
 
-def remove_low_coordinated(topol, Nmax, element, silent):
+def remove_low_coordinated(topol, Nmax, element, silent, check):
     """Removes low coordinated (<Nmax-3) atoms
 
     Parameters
@@ -150,6 +150,15 @@ def remove_low_coordinated(topol, Nmax, element, silent):
     verboseprint = print if not silent else lambda *a, **k: None
     topol.topologize()
     verboseprint("\nRemoving low coordinated atoms....")
+    if(check == 'all'):
+        remove_metal = True
+        remove_oxygen = True
+    elif(check == None):
+        remove_metal = False
+        remove_oxygen = False
+    elif(check.lower() == 'metal'):
+        remove_metal = True
+        remove_oxygen = False
 
     while(1):
         indices = []
@@ -159,32 +168,25 @@ def remove_low_coordinated(topol, Nmax, element, silent):
         topology = topol.trj.topology.to_dataframe()
 
         # Get low coordinated atoms using radish
-        i = 3   # Coordination less than or equal to Nmax-3
-        while(i <= Nmax):
-            #print(topol.extract(element,\
-            #                                  environment = {'O': Nmax - i}).\
-            #                                          index.get_level_values(1))
-            #try:
-            centerIndices = topol.extract(element, environment = {'O': Nmax - i})\
-                                 .filter("i").squeeze()
 
-            indices.extend(np.atleast_1d(centerIndices))
-            # If no indices found Topologizer throws IndexError
-            #except IndexError:
-            #    pass
+        if(remove_metal):
+            i = 3   # Coordination less than or equal to Nmax-3
+            while(i <= Nmax):
+                centerIndices = topol.extract(element, environment = {'O': Nmax - i})\
+                                    .filter("i").squeeze()
 
-            i += 1
+                indices.extend(np.atleast_1d(centerIndices))
 
-        i = 0
-        while i < 2:
-            #try:
-            oxygenIndices = topol.extract('O', environment={element: i})\
-                                 .filter("i").squeeze()
-            indices.extend(np.atleast_1d(oxygenIndices))
+                i += 1
 
-            #except IndexError:
-            #    pass
-            i += 1
+        if(remove_oxygen):
+            i = 0
+            while i < 2:
+                oxygenIndices = topol.extract('O', environment={element: i})\
+                                    .filter("i").squeeze()
+                indices.extend(np.atleast_1d(oxygenIndices))
+
+                i += 1
 
         # Get uncoordinated atoms
         topologyIndices = np.array([atom.index for atom in topol.trj.topology.atoms])

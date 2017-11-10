@@ -5,10 +5,11 @@ metal oxide surfaces.
 
 Example
 -------
-Using wetter module in existing project::
+Using Wetter module in existing project::
 
-    import Wetter
-    wet = Wetter(verbose, radish_instance)
+    import mizzle.Wetter as mw
+    wet = mw(verbose, radish_instance)
+    wet.remove_low_coordinated(Nmax, 'element')
     wet.add_solvate({'Nmax': Nmax, 'element': element,\
 'coordination': coordination, 'OH': hydroxylFrac, 'OH2': waterFrac, 'O':0.05})
     wet.optimize()
@@ -58,18 +59,15 @@ from tqdm import tqdm
 from scipy.optimize import minimize
 import sys
 from timeit import default_timer as timer
-import pyximport; pyximport.install()
 import mdtraj as md
 from IPython import embed
 from scipy.optimize.optimize import _approx_fprime_helper
-
-# drizzle imports
-import potential
-from pdbExplorer import append_atoms
-from pdbExplorer import remove_low_coordinated
-import AtomCreator
-from overlap import shortest_distance
-from puts import puts
+# mizzle imports
+from mizzle import potential,ghosts
+from mizzle.pdbExplorer import append_atoms,remove_low_coordinated
+import mizzle.AtomCreator as mac
+from mizzle.overlap import shortest_distance
+from mizzle.puts import puts
 
 if sys.version_info[0] == 2:
     # workaround for Sphinx autodoc bug
@@ -214,7 +212,7 @@ class Wetter:
         self.centerNumNeighbours = centerNumNeighbours
         #Time objective function
         start = timer()
-        potential.potential_c(coords.flatten(), centers, self.topol,\
+        potential.potential(coords.flatten(), centers, self.topol,\
                               centerNeighbours, centerNumNeighbours, self.boxVectors)
         end = timer()
         self.potTime = end-start
@@ -222,7 +220,7 @@ class Wetter:
                           " seconds to calculate")
 
         start = timer()
-        potential.potential_c_jac(coords.flatten(), centers, self.topol,\
+        potential.potential_jac(coords.flatten(), centers, self.topol,\
                                   centerNeighbours, centerNumNeighbours, self.boxVectors)
         end = timer()
         self.jacPotTime = end-start
@@ -234,10 +232,10 @@ class Wetter:
 
         # Run minimization
         self.start = timer()
-        res = minimize(potential.potential_c, coords,
+        res = minimize(potential.potential, coords,
                         args = (centers, self.topol, centerNeighbours,\
                                 centerNumNeighbours, self.boxVectors),
-                        jac = potential.potential_c_jac,
+                        jac = potential.potential_jac,
                         method = 'SLSQP',
                         callback = self.show_progress,
                         #options={'disp': False, 'gtol': 1e-5, 'iprint': 0,\
@@ -245,7 +243,7 @@ class Wetter:
                         #         'maxiter': 5000})
                         options={'disp': True, 'ftol':1e-10, 'iprint': 1,\
                                  'eps': 1.4901161193847656e-8, 'maxiter':500})
-        print(res)
+
         if(res.success):
             self.verboseprint("\n")
             if(not self.silent):
@@ -383,8 +381,8 @@ class Wetter:
                 if(len(tempVectors) == 2):
                     axis = sumVec
                     angle = np.pi/2
-                    pairVec1 = np.dot(AtomCreator.rotate_around_vec(axis, angle), pairVec1)
-                    pairVec2 = np.dot(AtomCreator.rotate_around_vec(axis, angle), pairVec2)
+                    pairVec1 = np.dot(mac.rotate_around_vec(axis, angle), pairVec1)
+                    pairVec2 = np.dot(mac.rotate_around_vec(axis, angle), pairVec2)
 
                 # Rotate the vectors towards each other
                 # (away from center of bulk)
@@ -392,16 +390,16 @@ class Wetter:
                 dotProdVec1 = np.dot(sumVec, pairVec1)
                 dotProdVec2 = np.dot(sumVec, pairVec2)
                 if(dotProdVec1 < 0):
-                    pairVec1 = np.dot(AtomCreator.rotate_around_vec(crossProd, np.pi/7), pairVec1)
-                    pairVec2 = np.dot(AtomCreator.rotate_around_vec(crossProd, -np.pi/7), pairVec2)
+                    pairVec1 = np.dot(mac.rotate_around_vec(crossProd, np.pi/7), pairVec1)
+                    pairVec2 = np.dot(mac.rotate_around_vec(crossProd, -np.pi/7), pairVec2)
                     #pairVec1 = Quaternion(axis = crossProd,angle = -np.pi/7).\
                     #    rotate(pairVec1)
                     #pairVec2 = Quaternion(axis = crossProd,angle = np.pi/7).\
                     #    rotate(pairVec2)
                 else:
                     angle = -np.pi/7
-                    pairVec1 = np.dot(AtomCreator.rotate_around_vec(crossProd, np.pi/7), pairVec1)
-                    pairVec2 = np.dot(AtomCreator.rotate_around_vec(crossProd, -np.pi/7), pairVec2)
+                    pairVec1 = np.dot(mac.rotate_around_vec(crossProd, np.pi/7), pairVec1)
+                    pairVec2 = np.dot(mac.rotate_around_vec(crossProd, -np.pi/7), pairVec2)
                     #pairVec2 = Quaternion(axis = crossProd,angle = -np.pi/7).\
                     #    rotate(pairVec2)
                     #pairVec1 = Quaternion(axis = crossProd,angle = np.pi/7).\
@@ -631,13 +629,13 @@ class Wetter:
             Array containing the element symbols
         """
 
-        hydCoords, hydElements = AtomCreator.add_hydroxyl(self.hydCoords, 
-                                                          self.hydVectors, 
-                                                          self.theta)
-
-        watCoords, watElements = AtomCreator.add_water(self.watCoords, 
-                                                       self.watVectors, 
-                                                       self.theta)
+        hydCoords, hydElements = mac.add_hydroxyl(self.hydCoords, 
+                                                  self.hydVectors, 
+                                                  self.theta)
+        
+        watCoords, watElements = mac.add_water(self.watCoords, 
+                                               self.watVectors, 
+                                               self.theta)
 
         coords = np.concatenate((watCoords, hydCoords))
         elements = np.concatenate((watElements, hydElements))
@@ -650,8 +648,8 @@ class Wetter:
         self.verboseprint("Shortest H-H distance in solvent: " + str(minHDist) + " Angstrom.")
         self.verboseprint("Shortest distance between solvent and structure: " + str(minStructDist) + " Angstrom.\n")
 
-    def remove_low_coordinated(self, Nmax, element):
-        self.topol = remove_low_coordinated(self.topol, Nmax, element, self.silent)
+    def remove_low_coordinated(self, Nmax, element, check = 'all'):
+        self.topol = remove_low_coordinated(self.topol, Nmax, element, self.silent, check)
 
     def save(self, fileWet, resname = 'SOL'):
         self.topol.trj.save(fileWet, force_overwrite = True)
