@@ -115,11 +115,13 @@ class Wetter:
         #Set up verbose print function
         self.__verboseprint = print if not silent else lambda *a, **k: None
         self.__verboseputs = puts if not silent else lambda *a, **k: None
+
         self.__i = 0
         self.__potTime = None
         self.__jacPotTime = None
         self.__start = None
         self.__end = None
+        self.__optimizationLog = list()
 
         #temp
         self.centers = None
@@ -130,6 +132,8 @@ class Wetter:
         #jac = potential.potential_c_jac(x, self.centers, self.topol,\
         #                          self.centerNeighbours, self.centerNumNeighbours, self.boxVectors)
         #print(np.linalg.norm(jac))
+        self.__optimizationLog.append(potential.potential(x, self.centers, self.topol,\
+                              self.centerNeighbours, self.centerNumNeighbours, self.boxVectors))
         self.__end = timer()
         if(self.__i % 5 == 0 or self.__i == 1):
             self.__verboseprint('\r', end='')
@@ -191,6 +195,7 @@ class Wetter:
         centerNumNeighbours = np.empty([0], dtype = int)
 
         # Get neighbours to each center
+        i = 0
         for center in centers:
             neighbours = md.compute_neighbors(self.topol.trj, cutoff/10.0,\
                                               np.array([center]))
@@ -204,13 +209,35 @@ class Wetter:
             dispArray = np.vstack((neighbours, centerArray))
             dispArray = np.transpose(dispArray)
             dispVectors = md.compute_displacements(self.topol.trj, dispArray, periodic = True)[0]
+            neighbourCoords = -dispVectors*10 + self.topol.trj.xyz[0][center]*10
             centerNeighbours = np.vstack((centerNeighbours, -dispVectors*10 + self.topol.trj.xyz[0][center]*10))
 
+            res = minimize(potential.potential, coords[i],
+                        args = (np.asarray([center]), self.topol, np.asarray(np.vstack((neighbourCoords, np.delete(coords, i, axis=0))), dtype=float),\
+                                np.asarray([len(neighbours[0])]), self.boxVectors),
+                        jac = potential.potential_jac,
+                        #method = 'SLSQP',
+                        method = 'L-BFGS-B',
+                         options={'disp': False, 'ftol':1e-10, 'gtol':1e-10, 'iprint': 0,\
+                                  'eps': 1.4901161193847656e-8, 'maxiter':500})
+                        # options={'disp': False, 'gtol': 1e-5, 'iprint': 0,\
+                        #         'eps': 1.4901161193847656e-5,\
+                        #         'maxiter': 500})
+            coords[i] = res.x
+            i += 1
+        # print(len(coords))
+        # print(np.asarray(centers))
+        # print(centerNeighbours)
 
         #temp
+        # if(len(coords) == 1):
+        #     coords = np.asarray(coords)
+        #     centers = np.asarray(centers)
+
         self.centers = centers
         self.centerNeighbours = centerNeighbours
         self.centerNumNeighbours = centerNumNeighbours
+
         #Time objective function
         start = timer()
         potential.potential(coords.flatten(), centers, self.topol,\
@@ -237,13 +264,14 @@ class Wetter:
                         args = (centers, self.topol, centerNeighbours,\
                                 centerNumNeighbours, self.boxVectors),
                         jac = potential.potential_jac,
-                        method = 'SLSQP',
+                        #method = 'SLSQP',
+                        method = 'L-BFGS-B',
                         callback = self.__show_progress,
-                        #options={'disp': False, 'gtol': 1e-5, 'iprint': 0,\
-                        #         'eps': 1.4901161193847656e-5,\
-                        #         'maxiter': 5000})
-                        options={'disp': False, 'ftol':1e-10, 'iprint': 0,\
-                                 'eps': 1.4901161193847656e-8, 'maxiter':500})
+                        options={'disp': False, 'gtol': 1e-5, 'ftol': 1e-10,'iprint': 0,\
+                                'eps': 1.4901161193847656e-5,\
+                                'maxiter': 500})
+                        # options={'disp': False, 'ftol':1e-10, 'iprint': 0,\
+                        #          'eps': 1.4901161193847656e-8, 'maxiter':500})
 
         if(res.success):
             self.__verboseprint("\n")
@@ -251,6 +279,12 @@ class Wetter:
                 self.__verboseputs.success("Successfully minimized potential!\n")
         else:
             print("\nOptimization failed...\n")
+
+        file = open('minimization.log', 'w')
+        file.write("Iteration:\tFunction value:\n")
+        for ind, line in enumerate(self.__optimizationLog):
+            file.write(str(ind+1)+"        \t"+str(line)+"\n")
+        file.close()
 
         coords = np.reshape(res.x, (-1, 3))# Since minimization returns flat
                                            # array we need to reshape
