@@ -80,7 +80,8 @@ if sys.version_info[0] == 2:
 class Wetter:
 
     def __init__(self, topol, silent = False, theta=104.5, MOBondlength=2.2,\
-                 HOHBondlength=1, OHBondlength=1):
+                 HOHBondlength=1, OHBondlength=1, optLog = False,\
+                 solver = 'L-BFGS-B', maxiter=500):
 
         self.__hydVectors = np.empty([0, 3], dtype=float)
         self.__hydCoords = np.empty([0, 3], dtype=float)
@@ -104,11 +105,26 @@ class Wetter:
         self.highWaterFrac = 1
         self.highHydroxylFrac = 1
         self.silent = silent
+        self.optLog = optLog
+        self.solver = solver
+
+        if(solver == 'L-BFGS-B'):
+            self.optOptions={'disp': False, 'ftol':1e-10, 'gtol':1e-10, 'iprint': 0,\
+                                  'eps': 1.4901161193847656e-8, 'maxiter': maxiter}
+            self.prepOptions={'disp': False, 'ftol':1e-10, 'gtol':1e-10, 'iprint': 0,\
+                                  'eps': 1.4901161193847656e-8, 'maxiter': 100}
+        elif(solver == "SLSQP"):
+            self.optOptions={'disp': False, 'ftol':1e-10, 'iprint': 0,\
+                     'eps': 1.4901161193847656e-8, 'maxiter':maxiter}
+            self.prepOptions={'disp': False, 'ftol':1e-10, 'iprint': 0,\
+                     'eps': 1.4901161193847656e-8, 'maxiter':100}
+
         #Use radish (RAD-algorithm) to compute the coordination of each atom
         self.topol = Topologizer.from_coords(topol)
 
         if self.topol.trj.unitcell_lengths is None:
-            raise RuntimeError("No box vectors in PDB file")
+            #raise RuntimeError("No box vectors in PDB file")
+            self.boxVectors = np.array([0, 0, 0], dtype=float)
         else:
             self.boxVectors = 10*self.topol.trj.unitcell_lengths.reshape(-1).astype(float)
 
@@ -117,6 +133,7 @@ class Wetter:
         self.__verboseputs = puts if not silent else lambda *a, **k: None
 
         self.__i = 0
+        self.__j = 0
         self.__potTime = None
         self.__jacPotTime = None
         self.__start = None
@@ -146,6 +163,12 @@ class Wetter:
         #print(potential.potential_c_jac(x))
         self.__i += 1
         self.__start = timer()
+
+    def __show_progress_prep(self, x):
+        self.__verboseprint('\r', end='')
+        sys.stdout.flush()
+        self.__verboseprint(str(int(float(self.__i)/float(self.__j)*100+1))+"% done.", end='')
+
 
     def optimizer(self, coords, centers):
         """Set up for minimization scheme for the SLSQP algorithm
@@ -195,7 +218,9 @@ class Wetter:
         centerNumNeighbours = np.empty([0], dtype = int)
 
         # Get neighbours to each center
+        print("Calculating guesses for the optimizer:")
         i = 0
+        self.__j = len(centers)
         for center in centers:
             neighbours = md.compute_neighbors(self.topol.trj, cutoff/10.0,\
                                               np.array([center]))
@@ -214,20 +239,23 @@ class Wetter:
 
             res = minimize(potential.potential, coords[i],
                         args = (np.asarray([center]), self.topol, np.asarray(np.vstack((neighbourCoords, np.delete(coords, i, axis=0))), dtype=float),\
-                                np.asarray([len(neighbours[0])]), self.boxVectors),
+                                np.asarray([len(neighbours[0])+len(coords)-1]), self.boxVectors),
                         jac = potential.potential_jac,
+                        callback=self.__show_progress_prep,
                         #method = 'SLSQP',
-                        method = 'L-BFGS-B',
-                         options={'disp': False, 'ftol':1e-10, 'gtol':1e-10, 'iprint': 0,\
-                                  'eps': 1.4901161193847656e-8, 'maxiter':500})
+                        method = self.solver,
+                        options=self.prepOptions)
+                        #options={'disp': False, 'ftol':1e-10, 'gtol':1e-10, 'iprint': 0,\
+                        #          'eps': 1.4901161193847656e-8, 'maxiter': 50})
                         # options={'disp': False, 'gtol': 1e-5, 'iprint': 0,\
                         #         'eps': 1.4901161193847656e-5,\
                         #         'maxiter': 500})
             coords[i] = res.x
             i += 1
-        # print(len(coords))
-        # print(np.asarray(centers))
-        # print(centerNeighbours)
+            self.__i += 1
+
+        print("\n")
+        self.__i = 0
 
         #temp
         # if(len(coords) == 1):
@@ -265,27 +293,32 @@ class Wetter:
                                 centerNumNeighbours, self.boxVectors),
                         jac = potential.potential_jac,
                         #method = 'SLSQP',
-                        method = 'L-BFGS-B',
-                        callback = self.__show_progress,
-                        options={'disp': False, 'gtol': 1e-5, 'ftol': 1e-10,'iprint': 0,\
-                                'eps': 1.4901161193847656e-5,\
-                                'maxiter': 500})
-                        # options={'disp': False, 'ftol':1e-10, 'iprint': 0,\
-                        #          'eps': 1.4901161193847656e-8, 'maxiter':500})
+                        method = self.solver,
+                        callback = self.__show_progress,#gtol -5, eps -5
+                        options=self.optOptions)
+        #                 #options={'disp': False, 'gtol': 1e-10, 'ftol': 1e-10,'iprint': 0,\
+        #                 #        'eps': 1.4901161193847656e-8,\
+        #                 #        'maxiter': self.maxiter})
+        #                 # options={'disp': False, 'ftol':1e-10, 'iprint': 0,\
+        #                 #          'eps': 1.4901161193847656e-8, 'maxiter':500})
 
+        self.__verboseprint("\n")
         if(res.success):
-            self.__verboseprint("\n")
             if(not self.silent):
                 self.__verboseputs.success("Successfully minimized potential!\n")
         else:
-            print("\nOptimization failed...\n")
+            self.__verboseputs.warning("Optimization failed... Try with\
+                                       different optimizer using the\
+                                       -solver flag or increasing max\
+                                       iterations with -maxiter\n")
 
-        file = open('minimization.log', 'w')
-        file.write("Iteration:\tFunction value:\n")
-        for ind, line in enumerate(self.__optimizationLog):
-            file.write(str(ind+1)+"        \t"+str(line)+"\n")
-        file.close()
-
+        if(self.optLog):
+            file = open('minimization.log', 'w')
+            file.write("Iteration:\tFunction value:\n")
+            for ind, line in enumerate(self.__optimizationLog):
+                file.write(str(ind+1)+"        \t"+str(line)+"\n")
+            file.close()
+        #print(res)
         coords = np.reshape(res.x, (-1, 3))# Since minimization returns flat
                                            # array we need to reshape
 

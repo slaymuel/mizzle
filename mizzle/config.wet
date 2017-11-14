@@ -9,12 +9,11 @@ atom Ti: defect
     hydroxyl: 0.5
 
 resname: HYD
+
 end
 
-#Kind of hardcoded as it is right now. Will fix this.
-#Every Nmax-2 coordinated atom splits one water. (maybe add possibility to choose custom splitting fraction later)
 #Not currently possible to simultaneously choose multiple different metals. Will add this.
-#resname is optional
+#resname is the residue name for the solvate added to the pdb file (optional)
 
 # surface are Nmax - 1 coordinated atoms
 # defect are Nmax - 2 coordinated atoms

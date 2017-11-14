@@ -17,6 +17,7 @@ Example config file::
     atom Ti: defect
         water: 0.5
         hydroxyl: 0.5
+    resname SOL
     end
 
 Notes
@@ -76,9 +77,16 @@ def main(argv=None):
                            help="Output: Hydrated structure, default: filename_wet.pdb")
     argparser.add_argument("-s", "--silent", action="store_true",
                            help="Param: Silence is golden")
+    argparser.add_argument("-log", "--log", action="store_true",
+                           help="Write log file for optimization")
     argparser.add_argument('--check', default='all', nargs='?',
                     choices=['none', 'metal', 'all'],
                     help='')
+    argparser.add_argument('-solver', default='L-BFGS-B', nargs='?',
+                    choices=['L-BFGS-B', 'SLSQP'],
+                    help='Minimization method')
+    argparser.add_argument('-maxiter', default='500',
+                    help='Maximum steps when minimizing potential')
     # Parse arguments
     argcomplete.autocomplete(argparser)
     args = argparser.parse_args()
@@ -86,7 +94,7 @@ def main(argv=None):
     ## PREPARE INPUT ##
     path = os.path.split(args.coords)[0]
     if(args.out):
-        fileWet = os.path.join(path, args.out)
+        fileWet = args.out
     else:
         root,ext = os.path.splitext(args.coords)
         fileWet = "{}{}{}".format(root, "_wet", ext)
@@ -130,7 +138,7 @@ def main(argv=None):
     ### RUN ALGORITHM ###
 
     # Create Wetter object
-    wet = Wetter(args.coords, silent = args.silent)
+    wet = Wetter(args.coords, silent = args.silent, optLog = args.log, solver = args.solver.upper(), maxiter = int(args.maxiter))
     wet.remove_low_coordinated(Nmax, element, check=args.check)
 
     # Specify which types of atoms that should be hydrated

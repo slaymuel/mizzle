@@ -17,6 +17,7 @@ def parse(file):
                    "bond angle", "water", "hydroxyl", "fraction"]
     atoms = []
     resname = None
+    solver = []
     i = 0
 
     while(i < len(content)):

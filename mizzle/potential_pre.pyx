@@ -67,9 +67,9 @@ def potential(np.ndarray[np.float64_t, ndim=1] solvateCoords,
     cdef int solvateLen = len(solvateCoords)/3
     cdef float eqDist = 2.2
     cdef float A = 10
-    cdef float B = 30
-    cdef float D = 10
-    cdef float a = 1
+    cdef float B = 50
+    cdef float D = 5
+    cdef float a = 2
     cdef float s = 0.1
 
     for r in range(solvateLen):
@@ -77,8 +77,8 @@ def potential(np.ndarray[np.float64_t, ndim=1] solvateCoords,
         distance = ((solvateCoords[r*3] - centersXYZ[i][0])**2 +\
                     (solvateCoords[r*3+1] - centersXYZ[i][1])**2 +\
                     (solvateCoords[r*3+2] - centersXYZ[i][2])**2)**(1./2)
-        sumPot += D*(exp(-2*a*(distance-eqDist))-2*exp(-a*(distance-eqDist)))+s*(-2/3*D*exp(-2*a*eqDist)*(exp(a*eqDist)-1))*exp(-3*a*(distance-eqDist))
-        #sumPot += 5*(distance - 2.2)**2
+        #sumPot += D*(exp(-2*a*(distance-eqDist))-2*exp(-a*(distance-eqDist)))+s*(-2/3*D*exp(-2*a*eqDist)*(exp( #a*eqDist)-1))*exp(-3*a*(distance-eqDist))
+        sumPot += 5*(distance - 2.2)**2
 
         # Solvate-neighbours pair-potential
         for d in range(centerNumNeighbours[r]):
@@ -99,19 +99,19 @@ def potential(np.ndarray[np.float64_t, ndim=1] solvateCoords,
                 tempNeighbour[0] = solvateCoords[u*3]
                 tempNeighbour[1] = solvateCoords[u*3+1]
                 tempNeighbour[2] = solvateCoords[u*3+2]
-                if(boxVectors[0] > 0):
-                    if(tempNeighbour[0] - solvateCoords[r*3] > boxVectors[0]/2):
-                        tempNeighbour[0] = tempNeighbour[0] - boxVectors[0]
-                    elif(tempNeighbour[0] - solvateCoords[r*3] < -boxVectors[0]/2):
-                        tempNeighbour[0] = tempNeighbour[0] + boxVectors[0]
-                    if(tempNeighbour[1] - solvateCoords[r*3 + 1] > boxVectors[1]/2):
-                        tempNeighbour[1] = tempNeighbour[1] - boxVectors[1]
-                    elif(tempNeighbour[1] - solvateCoords[r*3 + 1] < -boxVectors[1]/2):
-                        tempNeighbour[1] = tempNeighbour[1] + boxVectors[1]
-                    if(tempNeighbour[2] - solvateCoords[r*3 + 2] > boxVectors[2]/2):
-                        tempNeighbour[2] = tempNeighbour[2] - boxVectors[2]
-                    elif(tempNeighbour[2] - solvateCoords[r*3 + 2] < -boxVectors[2]/2):
-                        tempNeighbour[2] = tempNeighbour[2] + boxVectors[2]
+
+                if(tempNeighbour[0] - solvateCoords[r*3] > boxVectors[0]/2):
+                    tempNeighbour[0] = tempNeighbour[0] - boxVectors[0]
+                elif(tempNeighbour[0] - solvateCoords[r*3] < -boxVectors[0]/2):
+                    tempNeighbour[0] = tempNeighbour[0] + boxVectors[0]
+                if(tempNeighbour[1] - solvateCoords[r*3 + 1] > boxVectors[1]/2):
+                    tempNeighbour[1] = tempNeighbour[1] - boxVectors[1]
+                elif(tempNeighbour[1] - solvateCoords[r*3 + 1] < -boxVectors[1]/2):
+                    tempNeighbour[1] = tempNeighbour[1] + boxVectors[1]
+                if(tempNeighbour[2] - solvateCoords[r*3 + 2] > boxVectors[2]/2):
+                    tempNeighbour[2] = tempNeighbour[2] - boxVectors[2]
+                elif(tempNeighbour[2] - solvateCoords[r*3 + 2] < -boxVectors[2]/2):
+                    tempNeighbour[2] = tempNeighbour[2] + boxVectors[2]
 
                 distance = ((solvateCoords[r*3] - tempNeighbour[0])**2 +\
                             (solvateCoords[r*3+1] - tempNeighbour[1])**2 +\
@@ -159,9 +159,9 @@ def potential_jac(np.ndarray[np.float64_t, ndim=1] solvateCoords,
 
     cdef float eqDist = 2.2
     cdef float A = 10
-    cdef float B = 30
-    cdef float D = 10
-    cdef float a = 1
+    cdef float B = 50
+    cdef float D = 5
+    cdef float a = 2
     cdef float s = 0.1
 
     for i in range(solvateLen):
@@ -174,21 +174,21 @@ def potential_jac(np.ndarray[np.float64_t, ndim=1] solvateCoords,
                     (solvateCoords[3*i+1] - centersXYZ[i][1])**2 +\
                     (solvateCoords[3*i+2] - centersXYZ[i][2])**2)**(1./2)
 
-        jac[3*i] = (2*a*(exp(eqDist*a)-1)*D*s*(solvateCoords[3*i] - centersXYZ[i][0])*exp(-3*a*(distance - eqDist)-2*eqDist*a))/distance +\
-        D*((2*a*(solvateCoords[3*i] - centersXYZ[i][0])*exp(-a*(distance - eqDist)))/distance) -\
-        D*((2*a*(solvateCoords[3*i] - centersXYZ[i][0])*exp(-2*a*(distance - eqDist)))/distance)
+        #jac[3*i] = (2*a*(exp(eqDist*a)-1)*D*s*(solvateCoords[3*i] - centersXYZ[i][0])*exp(-3*a*(distance - #eqDist)-2*eqDist*a))/distance +\
+        #D*((2*a*(solvateCoords[3*i] - centersXYZ[i][0])*exp(-a*(distance - eqDist)))/distance) -\
+        #D*((2*a*(solvateCoords[3*i] - centersXYZ[i][0])*exp(-2*a*(distance - eqDist)))/distance)
 
-        jac[3*i+1] = (2*a*(exp(eqDist*a)-1)*D*s*(solvateCoords[3*i+1] - centersXYZ[i][1])*exp(-3*a*(distance - eqDist)-2*eqDist*a))/distance +\
-        D*((2*a*(solvateCoords[3*i+1] - centersXYZ[i][1])*exp(-a*(distance - eqDist)))/distance) -\
-        D*((2*a*(solvateCoords[3*i+1] - centersXYZ[i][1])*exp(-2*a*(distance - eqDist)))/distance)
+        #jac[3*i+1] = (2*a*(exp(eqDist*a)-1)*D*s*(solvateCoords[3*i+1] - centersXYZ[i][1])*exp(-3*a*(distance - #eqDist)-2*eqDist*a))/distance +\
+        #D*((2*a*(solvateCoords[3*i+1] - centersXYZ[i][1])*exp(-a*(distance - eqDist)))/distance) -\
+        #D*((2*a*(solvateCoords[3*i+1] - centersXYZ[i][1])*exp(-2*a*(distance - eqDist)))/distance)
 
-        jac[3*i+2] = (2*a*(exp(eqDist*a)-1)*D*s*(solvateCoords[3*i+2] - centersXYZ[i][2])*exp(-3*a*(distance - eqDist)-2*eqDist*a))/distance +\
-        D*((2*a*(solvateCoords[3*i+2] - centersXYZ[i][2])*exp(-a*(distance - eqDist)))/distance) -\
-        D*((2*a*(solvateCoords[3*i+2] - centersXYZ[i][2])*exp(-2*a*(distance - eqDist)))/distance)
+        #jac[3*i+2] = (2*a*(exp(eqDist*a)-1)*D*s*(solvateCoords[3*i+2] - centersXYZ[i][2])*exp(-3*a*(distance - #eqDist)-2*eqDist*a))/distance +\
+        #D*((2*a*(solvateCoords[3*i+2] - centersXYZ[i][2])*exp(-a*(distance - eqDist)))/distance) -\
+        #D*((2*a*(solvateCoords[3*i+2] - centersXYZ[i][2])*exp(-2*a*(distance - eqDist)))/distance)
 
-        #jac[3*i] = 10*(solvateCoords[3*i]-centersXYZ[i][0])*(denom-2.2)/denom
-        #jac[3*i+1] = 10*(solvateCoords[3*i+1]-centersXYZ[i][1])*(denom-2.2)/denom
-        #jac[3*i+2] = 10*(solvateCoords[3*i+2]-centersXYZ[i][2])*(denom-2.2)/denom       
+        jac[3*i] = 10*(solvateCoords[3*i]-centersXYZ[i][0])*(denom-2.2)/denom
+        jac[3*i+1] = 10*(solvateCoords[3*i+1]-centersXYZ[i][1])*(denom-2.2)/denom
+        jac[3*i+2] = 10*(solvateCoords[3*i+2]-centersXYZ[i][2])*(denom-2.2)/denom       
         
         # Solvate - neighbours pair-potential
         for d in range(centerNumNeighbours[i]):
@@ -210,19 +210,19 @@ def potential_jac(np.ndarray[np.float64_t, ndim=1] solvateCoords,
                 tempNeighbour[0] = solvateCoords[j*3]
                 tempNeighbour[1] = solvateCoords[j*3+1]
                 tempNeighbour[2] = solvateCoords[j*3+2]
-                if(boxVectors[0] > 0):
-                    if(tempNeighbour[0] - solvateCoords[i*3] > boxVectors[0]/2):
-                        tempNeighbour[0] = tempNeighbour[0] - boxVectors[0]
-                    elif(tempNeighbour[0] - solvateCoords[i*3] < -boxVectors[0]/2):
-                        tempNeighbour[0] = tempNeighbour[0] + boxVectors[0]
-                    if(tempNeighbour[1] - solvateCoords[i*3 + 1] > boxVectors[1]/2):
-                        tempNeighbour[1] = tempNeighbour[1] - boxVectors[1]
-                    elif(tempNeighbour[1] - solvateCoords[i*3 + 1] < -boxVectors[1]/2):
-                        tempNeighbour[1] = tempNeighbour[1] + boxVectors[1]
-                    if(tempNeighbour[2] - solvateCoords[i*3 + 2] > boxVectors[2]/2):
-                        tempNeighbour[2] = tempNeighbour[2] - boxVectors[2]
-                    elif(tempNeighbour[2] - solvateCoords[i*3 + 2] < -boxVectors[2]/2):
-                        tempNeighbour[2] = tempNeighbour[2] + boxVectors[2]
+
+                if(tempNeighbour[0] - solvateCoords[i*3] > boxVectors[0]/2):
+                    tempNeighbour[0] = tempNeighbour[0] - boxVectors[0]
+                elif(tempNeighbour[0] - solvateCoords[i*3] < -boxVectors[0]/2):
+                    tempNeighbour[0] = tempNeighbour[0] + boxVectors[0]
+                if(tempNeighbour[1] - solvateCoords[i*3 + 1] > boxVectors[1]/2):
+                    tempNeighbour[1] = tempNeighbour[1] - boxVectors[1]
+                elif(tempNeighbour[1] - solvateCoords[i*3 + 1] < -boxVectors[1]/2):
+                    tempNeighbour[1] = tempNeighbour[1] + boxVectors[1]
+                if(tempNeighbour[2] - solvateCoords[i*3 + 2] > boxVectors[2]/2):
+                    tempNeighbour[2] = tempNeighbour[2] - boxVectors[2]
+                elif(tempNeighbour[2] - solvateCoords[i*3 + 2] < -boxVectors[2]/2):
+                    tempNeighbour[2] = tempNeighbour[2] + boxVectors[2]
 
                 denom = ((solvateCoords[3*i] - tempNeighbour[0])**2 +\
                          (solvateCoords[3*i+1] - tempNeighbour[1])**2 +\
