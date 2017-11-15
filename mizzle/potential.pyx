@@ -68,11 +68,12 @@ def potential(np.ndarray[np.float64_t, ndim=1] solvateCoords,
     cdef double distance = 0
     cdef int solvateLen = len(solvateCoords)/3
     cdef float eqDist = 2.2
-    cdef float A = 10
-    cdef float B = 30
-    cdef float D = 10
+    cdef float A = 20
+    cdef float B = 5
+    cdef float D = 40
     cdef float a = 1
-    cdef float s = 0.1
+    cdef float s = 0.01
+    cdef float p = 4
 
     for r in range(solvateLen):
         # Harmonic potential
@@ -91,8 +92,8 @@ def potential(np.ndarray[np.float64_t, ndim=1] solvateCoords,
                         (solvateCoords[r*3+2] -\
                          tempNeighbour[2])**2)**(1./2)
 
-            #sumPot += 1/(distance**4)
-            sumPot += A/(distance**4)
+            #sumPot += 1/(distance**p)
+            sumPot += A/(distance**p)
             k += 1
 
         # Solvate - solvate pair-potential
@@ -121,8 +122,8 @@ def potential(np.ndarray[np.float64_t, ndim=1] solvateCoords,
                             tempNeighbour[2])**2)**(1./2)
 
                 #if(distance != 0.0):
-                #sumPot += 1/(distance**4)
-                sumPot += B/(distance**4)
+                #sumPot += 1/(distance**p)
+                sumPot += B/(distance**p)
         i += 1
     return sumPot
 
@@ -160,11 +161,12 @@ def potential_jac(np.ndarray[np.float64_t, ndim=1] solvateCoords,
     centersXYZ = topol.trj.xyz[0][centers]*10
 
     cdef float eqDist = 2.2
-    cdef float A = 10
-    cdef float B = 30
-    cdef float D = 10
+    cdef float A = 20
+    cdef float B = 5
+    cdef float D = 40
     cdef float a = 1
-    cdef float s = 0.1
+    cdef float s = 0.01
+    cdef float p = 4
 
     for i in range(solvateLen):
         # Harmonic potential
@@ -198,11 +200,11 @@ def potential_jac(np.ndarray[np.float64_t, ndim=1] solvateCoords,
 
             denom = ((solvateCoords[3*i] - tempNeighbour[0])**2 +\
                      (solvateCoords[3*i+1] - tempNeighbour[1])**2 +\
-                     (solvateCoords[3*i+2] - tempNeighbour[2])**2)**3
+                     (solvateCoords[3*i+2] - tempNeighbour[2])**2)**(p-1)
 
-            jac[3*i] += -4*A*(solvateCoords[3*i] - tempNeighbour[0])/denom
-            jac[3*i+1] += -4*A*(solvateCoords[3*i+1] - tempNeighbour[1])/denom
-            jac[3*i+2] += -4*A*(solvateCoords[3*i+2] - tempNeighbour[2])/denom
+            jac[3*i] += -p*A*(solvateCoords[3*i] - tempNeighbour[0])/denom
+            jac[3*i+1] += -p*A*(solvateCoords[3*i+1] - tempNeighbour[1])/denom
+            jac[3*i+2] += -p*A*(solvateCoords[3*i+2] - tempNeighbour[2])/denom
 
             k += 1
 
@@ -228,17 +230,17 @@ def potential_jac(np.ndarray[np.float64_t, ndim=1] solvateCoords,
 
                 denom = ((solvateCoords[3*i] - tempNeighbour[0])**2 +\
                          (solvateCoords[3*i+1] - tempNeighbour[1])**2 +\
-                         (solvateCoords[3*i+2] - tempNeighbour[2])**2)**3
+                         (solvateCoords[3*i+2] - tempNeighbour[2])**2)**(p-1)
 
-                jac[3*i] += (-4)*B*(solvateCoords[3*i] - tempNeighbour[0])/denom
-                jac[3*i+1] += (-4)*B*(solvateCoords[3*i+1] - tempNeighbour[1])/denom
-                jac[3*i+2] += (-4)*B*(solvateCoords[3*i+2] - tempNeighbour[2])/denom
+                jac[3*i] += (-p)*B*(solvateCoords[3*i] - tempNeighbour[0])/denom
+                jac[3*i+1] += (-p)*B*(solvateCoords[3*i+1] - tempNeighbour[1])/denom
+                jac[3*i+2] += (-p)*B*(solvateCoords[3*i+2] - tempNeighbour[2])/denom
 
                 denom = ((tempNeighbour[0] - solvateCoords[3*i])**2 +\
                          (tempNeighbour[1] - solvateCoords[3*i+1])**2 +\
-                         (tempNeighbour[2] - solvateCoords[3*i+2])**2)**3
+                         (tempNeighbour[2] - solvateCoords[3*i+2])**2)**(p-1)
 
-                jac[3*i] += 4*B*(tempNeighbour[0] - solvateCoords[3*i])/denom
-                jac[3*i+1] += 4*B*(tempNeighbour[1] - solvateCoords[3*i+1])/denom
-                jac[3*i+2] += 4*B*(tempNeighbour[2] - solvateCoords[3*i+2])/denom
+                jac[3*i] += p*B*(tempNeighbour[0] - solvateCoords[3*i])/denom
+                jac[3*i+1] += p*B*(tempNeighbour[1] - solvateCoords[3*i+1])/denom
+                jac[3*i+2] += p*B*(tempNeighbour[2] - solvateCoords[3*i+2])/denom
     return jac      

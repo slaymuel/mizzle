@@ -20,6 +20,7 @@ def shortest_distance(np.ndarray[np.float64_t, ndim=2] solvCoords, np.ndarray el
     cdef double minODist = 9999.999
     cdef double minHDist = 9999.999
     cdef double minStructDist = 9999.999
+    cdef double maxStructDist = 0
     cdef double distance = 0
 
     while i < len(solvCoords):
@@ -49,6 +50,9 @@ def shortest_distance(np.ndarray[np.float64_t, ndim=2] solvCoords, np.ndarray el
                 (solvCoords[i][2] - structCoords[k][2])**2)**(1.0/2)
             if(distance < minStructDist):
                 minStructDist = distance
+            elif(distance > maxStructDist):
+                maxStructDist = distance
             k += 1
         i += 1
-    return minODist, minHDist, minStructDist
+        k = 0
+    return minODist, minHDist, minStructDist, maxStructDist

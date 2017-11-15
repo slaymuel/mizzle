@@ -103,7 +103,7 @@ class Wetter:
         self.solver = solver
 
         if(solver == 'L-BFGS-B'):
-            self.optOptions={'disp': False, 'ftol':1e-10, 'gtol':1e-10, 'iprint': 0,\
+            self.optOptions={'disp': False, 'ftol':1e-12, 'gtol':1e-12, 'iprint': 0,\
                                   'eps': 1.4901161193847656e-8, 'maxiter': maxiter}
             self.prepOptions={'disp': False, 'ftol':1e-10, 'gtol':1e-10, 'iprint': 0,\
                                   'eps': 1.4901161193847656e-8, 'maxiter': 100}
@@ -251,6 +251,7 @@ class Wetter:
             coords[i] = res.x
             i += 1
             self.__i += 1
+
         print("\n")
 
         self.__i = 0
@@ -300,7 +301,7 @@ class Wetter:
                                        " different optimizer using the"+\
                                        " -solver flag or increasing max"+\
                                        " iterations with -maxiter\n")
-
+        #print(res)
         if(self.optLog):
             file = open('minimization.log', 'w')
             file.write("Iteration:\tFunction value:\n")
@@ -706,14 +707,17 @@ class Wetter:
 
         minODist,\
             minHDist,\
-            minStructDist = shortest_distance(coords, elements,\
+            minStructDist,\
+            maxStructDist = shortest_distance(coords, elements,\
                                               self.topol.trj.xyz[0]*10)
         self.__verboseprint("Shortest O-O distance in solvent: " +\
                              str(minODist) + " Angstrom.")
         self.__verboseprint("Shortest H-H distance in solvent: " +\
                              str(minHDist) + " Angstrom.")
         self.__verboseprint("Shortest distance between solvent and structure:"\
-                            + " " + str(minStructDist) + " Angstrom.\n")
+                            + " " + str(minStructDist) + " Angstrom.")
+        self.__verboseprint("Longest distance between solvent and structure:"\
+                            + " " + str(maxStructDist) + " Angstrom.\n")
 
     def remove_low_coordinated(self, Nmax, element, check = 'all'):
         """Removes low coordinated atoms
