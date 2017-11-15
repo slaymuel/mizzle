@@ -6,7 +6,7 @@ Example
 -------
 Usage::
 
-    $ ./main.py TiO2_110.pdb -c config.wet
+    $ ./mizzler TiO2_110.pdb -c config.wet
 
 Example config file::
 
@@ -26,17 +26,17 @@ It is also possible to directly import the Wetter module.
  
     Example usage::
 
-        from Wetter import Wetter
-        from radish import Topologizer
+        from mizzle import Wetter
 
-        wet = Wetter(args.verbose, newtopol)
+        wet = Wetter('structure.pdb')
+        wet.remove_low_coordinated(Nmax, 'element')
         wet.solvate({'Nmax': Nmax, 'element': element, 'coordination': Nmax - 1,\
 'OH': hydroxylFrac, 'OH2': waterFrac, 'O':0.05})
         wet.solvate({'Nmax': Nmax, 'element': element, 'coordination': Nmax - 2,\
 'OH': fraction, 'OH2': 0, 'O':0.1})
         wet.optimize()
         wet.wet()
-        wet.save(fileWet, resname)
+        wet.save('file_to_save.pdb', 'solvate_residue_name')
 
 """
 from radish import Topologizer
@@ -48,7 +48,7 @@ import numpy as np
 import os
 from IPython import embed
 
-# mizzler imports
+# mizzle imports
 from mizzle.WetParser import parse,get_max_coordination
 from mizzle.pdbExplorer import remove_low_coordinated,append_atoms
 from mizzle.Wetter import Wetter

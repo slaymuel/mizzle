@@ -18,7 +18,7 @@
 #
 import os
 import sys
-sys.path.insert(0, u'/home/sast0643/mizzle/mizzle')
+sys.path.insert(0, u'/home/sast0643/mizzle/mizzle/')
 # sys.path.insert(0, os.path.abspath('..'))
 # import mock
 # MOCK_MODULES = []
@@ -37,7 +37,8 @@ sys.path.insert(0, u'/home/sast0643/mizzle/mizzle')
 extensions = ['sphinx.ext.autodoc',
     'sphinx.ext.todo',
     'sphinx.ext.viewcode',
-    'numpydoc']
+    'numpydoc',
+    'sphinx.ext.mathjax']
 numpydoc_show_class_members = False
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -170,7 +171,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     (master_doc, 'mizzler', u'mizzle Documentation',
-     author, 'mizzle', 'One line description of project.',
+     author, 'mizzle', 'Hydrates arbitrary metal oxide surfaces.',
      'Miscellaneous'),
 ]
 

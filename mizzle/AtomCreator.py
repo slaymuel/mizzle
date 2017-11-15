@@ -1,4 +1,5 @@
 """Creates and alignes solvate coordinates to metal centers
+
 """
 
 import numpy as np
@@ -41,6 +42,13 @@ def __skew(v):
     return S
 
 def rotate_around_vec(axis, angle):
+    """Rotates around vector
+
+    Returns
+    -------
+    R[0] : ndarray
+        Rotation matrix
+    """
     #mag = np.linalg.norm(vec)
     #vec = vec/mag
     theta = np.atleast_1d(angle)
@@ -143,14 +151,14 @@ def add_oxygen(coords, vectors):
     return atoms, elements
 
 def add_hydroxyl(coords, vectors, theta):
-    """Adds hydroxyl
+    """Creates hydroxyl at specified coordinates
 
     Parameters
     ----------
     coords : array
-        coordinates where oxygen should be placed
+        coordinates where the oxygen in hydroxyl should be placed
     vectors : array
-        Directional vectors
+        Directional vectors along which to place 
 
     Returns
     -------
@@ -178,11 +186,11 @@ def add_hydroxyl(coords, vectors, theta):
         O = np.dot(rotMatrix, O)
         H = np.dot(rotMatrix, H)
 
-
+        #Rotate randomly aling directional vector
         axis = vectors[i]
         randAngle = random.uniform(0.1, 2*np.pi)
-        #H = Quaternion(axis=axis,angle=randAngle).rotate(H)
         H = np.dot(rotate_around_vec(axis, randAngle), H)
+
         #Translate to correct coordinates
         transVector = [coords[i][0] - O[0], coords[i][1] - O[1],\
                                             coords[i][2] - O[2]]
@@ -201,12 +209,12 @@ def add_hydroxyl(coords, vectors, theta):
     return atoms, elements
 
 def add_water(coords, vectors, theta):
-    """Adds water molecules
+    """Creates water molecules at specified coordinates
 
     Parameters
     ----------
     coords : array
-        Coordinates where oxygen should be placed
+        Coordinates where the oxygen in water should be placed
     vectors : array
         Directional vectors
 
@@ -226,7 +234,7 @@ def add_water(coords, vectors, theta):
         H1 = np.array([np.sin(theta/2), 0, np.cos(theta/2)])
         H2 = np.array([-np.sin(theta/2), 0, np.cos(theta/2)])
 
-        #No need to rotate O since it lies on the x and z axis
+        #No need to rotate O since it lies in the xz plane
         angle = np.pi - np.arccos(np.cos(np.radians(115))/\
                                          np.cos(np.radians(104.5/2)))
         H1 = __xRotate(H1, angle)
@@ -234,20 +242,14 @@ def add_water(coords, vectors, theta):
 
         #Align z axis to the directional vector
         rotMatrix = __align([0, 0, 1], vectors[i])
-        #O = np.dot(rotMatrix, O)
         H1 = np.dot(rotMatrix, H1)
         H2 = np.dot(rotMatrix, H2)
 
-
+        #Rotate randomly along directional vector
         axis = vectors[i]
         randAngle = random.uniform(0.1, 2*np.pi)
         H1 = np.dot(rotate_around_vec(axis, randAngle), H1)
         H2 = np.dot(rotate_around_vec(axis, randAngle), H2)
-        #O = Quaternion(axis=axis,angle=theta).rotate(O)
-        #H1 = Quaternion(axis=axis,angle=randAngle).rotate(H1)
-        #H2 = Quaternion(axis=axis,angle=randAngle).rotate(H2)
-
-
 
         #Translate to correct coordinates
         transVector = [coords[i][0] - O[0], coords[i][1] - O[1],\

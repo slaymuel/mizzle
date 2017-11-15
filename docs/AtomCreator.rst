@@ -5,3 +5,4 @@ AtomCreator module
     :members:
     :undoc-members:
     :show-inheritance:
+    :exclude-members: rotate_around_vec, add_oxygen

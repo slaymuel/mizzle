@@ -1,4 +1,4 @@
-""" Color print
+""" Print notifications in color
 
 """
 

@@ -2,9 +2,9 @@
 
 ## Motivation:
 Metal oxides in the presence of water are covered in a hydration shell. To
-accurately perform simulation on such systems this fact needs to be taken into
-account. The motivation for this tool lies therein and thus adds hydration
-shells to metal oxide systems.
+accurately perform simulations on such systems this fact needs to be taken into
+account. The motivation for this program lies therein and automatically adds 
+hydration shells to arbitrary metal oxide surfaces.
 
 ## Description:
 Hydrates metal oxides with OH_2, O_H and O. In `config.wet` the user specifies
@@ -12,11 +12,11 @@ which metals to hydrate and in what ratio. Hydrating a crystal containing
 different metals is supported.
 
 # Modules
-The program consists of three modules:
-	.Wetter
-	.AtomCreator
-	.pdbExplorer
-	.potential
+The program consists of four main modules:
+	*Wetter
+	*AtomCreator
+	*pdbExplorer
+	*potential
 
 ## Wetter
 Calculates directional vectors which are the oxygen -> metal center
@@ -37,7 +37,7 @@ maximum coordination of the metal) using the remove_lower_coordinated method at
 the start of the program.
 
 ## potential
-Contains the objective function to be optimized.
+Contains the objective function to be optimized and the Jacobian.
 
 # Installation instructions:
 Clone repository and install with pip
@@ -46,47 +46,49 @@ pip install .
 ```
 
 ## Development install
-
+```
 pip install -e .
+```
 
 ## Rebuild Cython libraries
-
+```
 python setup.py build_ext --inplace
-
+```
 
 # Usage
 
 ```bash
-mizzler input.pdb
+./mizzler input.pdb
 ```
 optional flags:
 ```
--v (verbose) -o (ouput filename) -c (config file) --check[none, metal, all]
+-s (silent) -o (ouput filename) -c (config file) --check [none, metal, all] --log(output log file) -solver [L-BFGS-B, SLSQP] -maxiter (max iterations)
 ```
 
 # Examples
 ## Config file
 `config.wet`
 ```
-    atom Ti: surface
-		water: 1.0
-		hydroxyl: 0.0
+atom Ti: surface
+	water: 1.0
+	hydroxyl: 0.0
 
-    atom Ti: defect
-        water: 0.5
-        hydroxyl: 0.5
-    end
+atom Ti: defect
+	water: 0.5
+	hydroxyl: 0.5
+end
+resname SOL
 ```
 
 ```bash
-mizzler input.pdb -c config.wet
+./mizzler input.pdb -c config.wet
 ```
 will put water on all Nmax-1 coordinated Ti atoms, each Nmax-2 coordinated atom will have a 50/50 chance of being hydrated with water and/or hydroxyl.
 # Other notes
 ## Non-standard packages:
-	.numpy
-	.scipy
-	.pandas
-	.pyquaternion
-	.radish
+	*numpy
+	*scipy
+	*pandas
+	*pyquaternion
+	*radish
 

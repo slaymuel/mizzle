@@ -1,6 +1,4 @@
-"""Hydrates metal oxide surfaces
-
-This is the main module that contains the methods for the hydration of
+"""The main module that contains the methods for the hydration of
 metal oxide surfaces.
 
 Example
@@ -8,50 +6,15 @@ Example
 Using Wetter module in existing project::
 
     import mizzle.Wetter as mw
-    wet = mw(verbose, radish_instance)
+    wet = mw('structure.pdb')
     wet.remove_low_coordinated(Nmax, 'element')
     wet.add_solvate({'Nmax': Nmax, 'element': element,\
 'coordination': coordination, 'OH': hydroxylFrac, 'OH2': waterFrac, 'O':0.05})
     wet.optimize()
     wet.wet()
-    wet.append_atoms('outputfile.pdb', 'residuename')
+    wet.save('outputfile.pdb', 'residuename')
 
-Attributes
-----------
-    hydVectors : ndarray
-        Array that holds directional vectors for hydroxyl molecules.
-    hydCoords
-        Array that holds oxygen coordinates for hydroxyl molecules.
-    hydCenters
-        Array that holds the corresponding metal atom for each 
-        hydroxyl molecule.
-    watVectors : ndarray
-        see hydVectors
-    watCoords
-        see hydCoords
-    watCenters
-        see hydCenters
-    oxyVectors : ndarray
-        see hydVectors
-    oxyCoords
-        hydCoords
-    oxyCenters
-        see hydCenters
-
-Parameters
-----------
-    theta : double, optional
-        HOH bond angle. Default is 104.5.
-    MOBondlength : double, optional
-        M-O bond length. Default is 2.2
-    HOHBondlength : double, optional
-        H-O bond length in water. Default is 1
-    OHBondlength : double, optional
-        O-H bond length in hydroxyl, Default is 1
-    silent : bool
-        enables/disables silent mode
 """
-
 from __future__ import print_function
 import numpy as np
 import pandas as pd
@@ -78,7 +41,38 @@ if sys.version_info[0] == 2:
         __builtin__.print(*args, **kwargs)
 
 class Wetter:
+    """
+    Wetter object
 
+    Parameters
+    ----------
+        topol : string
+            Path of pdb-file
+        theta : double, optional
+            HOH bond angle. Default is 104.5.
+        MOBondlength : double, optional
+            M-O bond length. Default is 2.2
+        HOHBondlength : double, optional
+            H-O bond length in water. Default is 1
+        OHBondlength : double, optional
+            O-H bond length in hydroxyl, Default is 1
+        silent : bool, optional
+            enables/disables silent mode
+        optLog : bool, optional
+            Outputs log file from optimization
+        solver : string, optional
+            optimization method
+        maxiter : int, optional
+            maximum iterations in optimization
+
+    Attributes
+    ----------
+        coords : ndarray
+            Coordinates of all solvate molecules, set after calling `wet()`
+        elements : array
+            Elements of all atoms in solvate, set after calling `wet()`
+
+    """
     def __init__(self, topol, silent = False, theta=104.5, MOBondlength=2.2,\
                  HOHBondlength=1, OHBondlength=1, optLog = False,\
                  solver = 'L-BFGS-B', maxiter=500):
@@ -118,6 +112,8 @@ class Wetter:
                      'eps': 1.4901161193847656e-8, 'maxiter':maxiter}
             self.prepOptions={'disp': False, 'ftol':1e-10, 'iprint': 0,\
                      'eps': 1.4901161193847656e-8, 'maxiter':100}
+        else:
+            raise RuntimeError("Unknown solver {}, please choose 'L-BFGS-B' (default) or 'SLSQP'.".format(solver))
 
         #Use radish (RAD-algorithm) to compute the coordination of each atom
         self.topol = Topologizer.from_coords(topol)
@@ -136,8 +132,6 @@ class Wetter:
         self.__j = 0
         self.__potTime = None
         self.__jacPotTime = None
-        self.__start = None
-        self.__end = None
         self.__optimizationLog = list()
 
         #temp
@@ -146,40 +140,43 @@ class Wetter:
         self.centerNumNeighbours = None
 
     def __show_progress(self, x):
-        #jac = potential.potential_c_jac(x, self.centers, self.topol,\
-        #                          self.centerNeighbours, self.centerNumNeighbours, self.boxVectors)
-        #print(np.linalg.norm(jac))
-        self.__optimizationLog.append(potential.potential(x, self.centers, self.topol,\
-                              self.centerNeighbours, self.centerNumNeighbours, self.boxVectors))
-        self.__end = timer()
+        """Print progression of optimizer
+
+        """
+        self.__optimizationLog.append(potential.potential(\
+                                      x,\
+                                      self.centers,\
+                                      self.topol,\
+                                      self.centerNeighbours,\
+                                      self.centerNumNeighbours,\
+                                      self.boxVectors))
+
         if(self.__i % 5 == 0 or self.__i == 1):
             self.__verboseprint('\r', end='')
             sys.stdout.flush()
-            #self.verboseprint("Maximum time left: " + str(self.end - self.start)*(500-self.i) + 's', end='')
-            #self.verboseprint("Maximum time left: " + str(self.end - self.start) + str(int((500 - self.i*2)*self.jacPotTime*2 + (500 - self.i*2)*self.potTime*2)) + 's', end='')
-            #self.verboseprint("Iteration: "+str(self.i)+". Maximum time left: " + str((500-self.i)*(self.end - self.start)) + 's', end='')
             self.__verboseprint("Iteration: "+str(self.__i), end='')
-        #_approx_fprime_helper(x, potential.potential_c, 1.4901161193847656e-8, args=(self.centers, self.topol, self.centerNeighbours, self.centerNumNeighbours, self.boxVectors))
-        #print(potential.potential_c_jac(x))
         self.__i += 1
-        self.__start = timer()
 
     def __show_progress_prep(self, x):
+        """Print progress of first guess optimizer
+
+        """
         self.__verboseprint('\r', end='')
         sys.stdout.flush()
-        self.__verboseprint(str(int(float(self.__i)/float(self.__j)*100+1))+"% done.", end='')
+        self.__verboseprint(str(int(float(self.__i)/float(self.__j)*100+1))+\
+                            "% done.", end='')
 
 
-    def optimizer(self, coords, centers):
-        """Set up for minimization scheme for the SLSQP algorithm
+    def __optimizer(self, coords, centers):
+        """Perform the minimization scheme
 
         Parameters
         ----------
         coords : 3*N array(float)
-            The coordination for which to construct the neighbourgraph and
-            the indices for all such metal centers
+            Coordinates of all solvate molecules
         centers : array(int)
-            Array containing all the centers which has bound each solvate
+            Containing all metal centers which has bound solvate in the same
+            order as `coords`
 
         Raises
         ------
@@ -192,8 +189,8 @@ class Wetter:
             Optimized oxygen coordinates
         vectors
             Optimized M-O vectors
-        """
 
+        """
         vectors = np.empty([0, 3], dtype = float)
         cutoff = 6.0
         M = self.topol.trj.xyz[0][centers]*10
@@ -233,35 +230,30 @@ class Wetter:
             centerArray = np.repeat(center, len(neighbours[0]))
             dispArray = np.vstack((neighbours, centerArray))
             dispArray = np.transpose(dispArray)
-            dispVectors = md.compute_displacements(self.topol.trj, dispArray, periodic = True)[0]
-            neighbourCoords = -dispVectors*10 + self.topol.trj.xyz[0][center]*10
-            centerNeighbours = np.vstack((centerNeighbours, -dispVectors*10 + self.topol.trj.xyz[0][center]*10))
+            dispVectors = md.compute_displacements(self.topol.trj, dispArray,\
+                                                   periodic = True)[0]
+            neighbourCoords = -dispVectors*10 +\
+                              self.topol.trj.xyz[0][center]*10
+            centerNeighbours = np.vstack((centerNeighbours, -dispVectors*10 +\
+                                          self.topol.trj.xyz[0][center]*10))
 
             res = minimize(potential.potential, coords[i],
-                        args = (np.asarray([center]), self.topol, np.asarray(np.vstack((neighbourCoords, np.delete(coords, i, axis=0))), dtype=float),\
-                                np.asarray([len(neighbours[0])+len(coords)-1]), self.boxVectors),
+                        args = (np.asarray([center]), self.topol,\
+                                np.asarray(np.vstack((neighbourCoords,\
+                                np.delete(coords, i, axis=0))), dtype=float),\
+                                np.asarray([len(neighbours[0])+\
+                                           len(coords)-1]),\
+                                self.boxVectors),
                         jac = potential.potential_jac,
                         callback=self.__show_progress_prep,
-                        #method = 'SLSQP',
                         method = self.solver,
                         options=self.prepOptions)
-                        #options={'disp': False, 'ftol':1e-10, 'gtol':1e-10, 'iprint': 0,\
-                        #          'eps': 1.4901161193847656e-8, 'maxiter': 50})
-                        # options={'disp': False, 'gtol': 1e-5, 'iprint': 0,\
-                        #         'eps': 1.4901161193847656e-5,\
-                        #         'maxiter': 500})
             coords[i] = res.x
             i += 1
             self.__i += 1
-
         print("\n")
+
         self.__i = 0
-
-        #temp
-        # if(len(coords) == 1):
-        #     coords = np.asarray(coords)
-        #     centers = np.asarray(centers)
-
         self.centers = centers
         self.centerNeighbours = centerNeighbours
         self.centerNumNeighbours = centerNumNeighbours
@@ -269,7 +261,8 @@ class Wetter:
         #Time objective function
         start = timer()
         potential.potential(coords.flatten(), centers, self.topol,\
-                              centerNeighbours, centerNumNeighbours, self.boxVectors)
+                            centerNeighbours, centerNumNeighbours,\
+                            self.boxVectors)
         end = timer()
         self.__potTime = end-start
         self.__verboseprint("Potential takes: " + str(end-start) +\
@@ -277,7 +270,8 @@ class Wetter:
 
         start = timer()
         potential.potential_jac(coords.flatten(), centers, self.topol,\
-                                  centerNeighbours, centerNumNeighbours, self.boxVectors)
+                                centerNeighbours, centerNumNeighbours,\
+                                self.boxVectors)
         end = timer()
         self.__jacPotTime = end-start
         self.__verboseprint("Potential Jacobian takes: " + str(end-start) +\
@@ -292,25 +286,20 @@ class Wetter:
                         args = (centers, self.topol, centerNeighbours,\
                                 centerNumNeighbours, self.boxVectors),
                         jac = potential.potential_jac,
-                        #method = 'SLSQP',
                         method = self.solver,
-                        callback = self.__show_progress,#gtol -5, eps -5
+                        callback = self.__show_progress,
                         options=self.optOptions)
-        #                 #options={'disp': False, 'gtol': 1e-10, 'ftol': 1e-10,'iprint': 0,\
-        #                 #        'eps': 1.4901161193847656e-8,\
-        #                 #        'maxiter': self.maxiter})
-        #                 # options={'disp': False, 'ftol':1e-10, 'iprint': 0,\
-        #                 #          'eps': 1.4901161193847656e-8, 'maxiter':500})
 
         self.__verboseprint("\n")
         if(res.success):
             if(not self.silent):
-                self.__verboseputs.success("Successfully minimized potential!\n")
+                self.__verboseputs.success("Successfully minimized"+\
+                                           " potential!\n")
         else:
-            self.__verboseputs.warning("Optimization failed... Try with\
-                                       different optimizer using the\
-                                       -solver flag or increasing max\
-                                       iterations with -maxiter\n")
+            self.__verboseputs.warning("Optimization failed... Try with"+\
+                                       " different optimizer using the"+\
+                                       " -solver flag or increasing max"+\
+                                       " iterations with -maxiter\n")
 
         if(self.optLog):
             file = open('minimization.log', 'w')
@@ -334,7 +323,7 @@ class Wetter:
 
     def __get_center_neighbours(self, coordination, center):
         """Construct neighbourgraph where columns are metal centers and rows 
-        their coordination shell
+        each atom in the coordination shell
 
         Parameters
         ----------
@@ -348,9 +337,12 @@ class Wetter:
             Indices for all metal centers if there are any, otherwise empty
         neighbourgrap
             neighbourgraph if any atoms found, empty otherwise
-        """
+        
+        Notes
+        -----
+        Coordination shell calculated using the Topologizer module from radish.
 
-        #try:
+        """
         centerIndices = self.topol.extract(center, environment =
                                            {'O': coordination})\
                                          .filter("i").squeeze()
@@ -362,9 +354,6 @@ class Wetter:
                 apply(np.int64)['i']
 
         return (centerIndices, neighbourgraph)
-
-        #except IndexError:  #If no atoms found, extract() throws IndexError
-        #    return [], []
 
 
     def __calculate_pair_vectors(self, coordination, O_frac,\
@@ -385,15 +374,16 @@ class Wetter:
             Coordinates for oxygen atom in each solvate
         centers : ndarray(int)
             List of each center that each solvate belongs to
-        """
 
+        """
         centerIndices, neighbourgraph = self.__get_center_neighbours(\
                                             coordination, center)
         
         if(len(centerIndices) > 0):
             centers = np.empty([0], dtype=int)
-            self.__verboseprint(("Found {} centers that are Nmax - 2 = {}-fold "
-                               "coordinated\n".format(len(centerIndices),coordination)))
+            self.__verboseprint(("Found {} centers that are Nmax - 2 = {}-fold"
+                               " coordinated\n".format(len(centerIndices),\
+                                                      coordination)))
 
 
             vectors = np.empty([0, 3], dtype = float)
@@ -416,7 +406,9 @@ class Wetter:
                 dispArray = np.vstack((neighbours, centerArray))
                 dispArray = np.transpose(dispArray)
 
-                dispVectors = md.compute_displacements(self.topol.trj, dispArray, periodic = True)[0]
+                dispVectors = md.compute_displacements(self.topol.trj,\
+                                                       dispArray,\
+                                                       periodic = True)[0]
 
                 for vector in dispVectors:
                     if(np.linalg.norm(vector) < 0.1):
@@ -449,8 +441,10 @@ class Wetter:
                 if(len(tempVectors) == 2):
                     axis = sumVec
                     angle = np.pi/2
-                    pairVec1 = np.dot(mac.rotate_around_vec(axis, angle), pairVec1)
-                    pairVec2 = np.dot(mac.rotate_around_vec(axis, angle), pairVec2)
+                    pairVec1 = np.dot(mac.rotate_around_vec(axis, angle),\
+                                      pairVec1)
+                    pairVec2 = np.dot(mac.rotate_around_vec(axis, angle),\
+                                      pairVec2)
 
                 # Rotate the vectors towards each other
                 # (away from center of bulk)
@@ -458,20 +452,16 @@ class Wetter:
                 dotProdVec1 = np.dot(sumVec, pairVec1)
                 dotProdVec2 = np.dot(sumVec, pairVec2)
                 if(dotProdVec1 < 0):
-                    pairVec1 = np.dot(mac.rotate_around_vec(crossProd, np.pi/7), pairVec1)
-                    pairVec2 = np.dot(mac.rotate_around_vec(crossProd, -np.pi/7), pairVec2)
-                    #pairVec1 = Quaternion(axis = crossProd,angle = -np.pi/7).\
-                    #    rotate(pairVec1)
-                    #pairVec2 = Quaternion(axis = crossProd,angle = np.pi/7).\
-                    #    rotate(pairVec2)
+                    pairVec1 = np.dot(mac.rotate_around_vec(crossProd,\
+                                                            np.pi/7), pairVec1)
+                    pairVec2 = np.dot(mac.rotate_around_vec(crossProd,\
+                                                           -np.pi/7), pairVec2)
                 else:
                     angle = -np.pi/7
-                    pairVec1 = np.dot(mac.rotate_around_vec(crossProd, np.pi/7), pairVec1)
-                    pairVec2 = np.dot(mac.rotate_around_vec(crossProd, -np.pi/7), pairVec2)
-                    #pairVec2 = Quaternion(axis = crossProd,angle = -np.pi/7).\
-                    #    rotate(pairVec2)
-                    #pairVec1 = Quaternion(axis = crossProd,angle = np.pi/7).\
-                    #    rotate(pairVec1)
+                    pairVec1 = np.dot(mac.rotate_around_vec(crossProd,\
+                                                            np.pi/7), pairVec1)
+                    pairVec2 = np.dot(mac.rotate_around_vec(crossProd,\
+                                                           -np.pi/7), pairVec2)
 
                 # Calculate coordinates
                 coord1 = self.topol.trj.xyz[0][center]*10 +\
@@ -497,13 +487,13 @@ class Wetter:
 
     def __calculate_vectors(self, coordination, O_frac,\
                           OH_frac, OH2_frac, center):
-        """ Calculate coordinates for solvate on for 5-coordinated atoms
+        """Calculate coordinates for solvate on for 5-coordinated atoms
 
             Notes
             -----
             See calculate_pair_vectors
-        """
 
+        """
         vectors = np.empty([0, 3], dtype=float)
         coords = np.empty([0, 3], dtype=float)
         
@@ -516,8 +506,9 @@ class Wetter:
         if(len(centerIndices) > 0): # If there are any Nmax-1 centers
             centers = np.empty([0], dtype=int)
 
-            self.__verboseprint(("Found {} centers that are Nmax - 1 = {}-fold "
-                               "coordinated.\n".format(len(centerIndices), coordination)))
+            self.__verboseprint(("Found {} centers that are Nmax - 1 = {}-fold"
+                               " coordinated.\n".format(len(centerIndices),\
+                                                       coordination)))
 
             #Calculate only for user specified fraction
             randIndices = random.sample(range(0, len(centerIndices)),\
@@ -534,7 +525,9 @@ class Wetter:
                 dispArray = np.vstack((neighbours, centerArray))
                 dispArray = np.transpose(dispArray)
 
-                dispVectors = md.compute_displacements(self.topol.trj, dispArray, periodic = True)[0]
+                dispVectors = md.compute_displacements(self.topol.trj,\
+                                                       dispArray,\
+                                                       periodic = True)[0]
 
                 #for neighbour in neighbourgraph[center]:
                 for vector in dispVectors:
@@ -571,19 +564,19 @@ class Wetter:
 
         Parameters
         ----------
-        params : dict with keys
-        element : string
-            Element symbol
-        coordination : int
-            coordination number of element
-        OH_frac : float
-            fraction of element atoms that should be hydrated with
-            hydroxyl.
-        OH2_frac : float
-            fraction of element atoms that should be hydrated with
-            water.
-        Nmax : int
-            Maximum coordination number
+        params : dict with keys::
+            element : string
+                Element symbol
+            coordination : int
+                coordination number of element
+            OH_frac : float
+                fraction of element atoms that should be hydrated with
+                hydroxyl.
+            OH2_frac : float
+                fraction of element atoms that should be hydrated with
+                water.
+            Nmax : int
+                Maximum coordination number
 
         Returns
         -------
@@ -593,8 +586,8 @@ class Wetter:
             Coordinates for oxygen atom in each solvate
         centers : ndarray(int)
             List of each center that each solvate belongs to
-        """
 
+        """
         element = params['element']
         coordination = params['coordination']
         OH_frac = params['OH']
@@ -633,8 +626,10 @@ class Wetter:
                                             float(len(coords))))
 
             self.__hydCoords = np.vstack((self.__hydCoords, coords[randIndices]))
-            self.__hydVectors = np.vstack((self.__hydVectors, vectors[randIndices]))
-            self.__hydCenters = np.hstack((self.__hydCenters, centers[randIndices]))
+            self.__hydVectors = np.vstack((self.__hydVectors,\
+                                           vectors[randIndices]))
+            self.__hydCenters = np.hstack((self.__hydCenters,\
+                                           centers[randIndices]))
             mask = np.ones(len(coords), np.bool)
             mask[randIndices] = 0
             self.__watCoords = np.vstack((self.__watCoords, coords[mask]))
@@ -659,13 +654,13 @@ class Wetter:
 
 
     def optimize(self):
-        """Maximize distance between solvate and it's neighbours
+        """Maximize distance between added solvate and it's neighbours
 
         Notes
         -------
-        Collects all coordinates and calls optimizer()
-        """
+        Collects all coordinates and invokes optimization routine
 
+        """
         vectors = np.empty([0, 3], dtype=float)
         coords = np.empty([0, 3], dtype=float)
         centers= np.empty([0], dtype=int)
@@ -677,7 +672,7 @@ class Wetter:
         centers = np.hstack((centers, self.__hydCenters.astype(int)))
         centers = np.hstack((centers, self.__watCenters.astype(int)))
 
-        coords, vectors = self.optimizer(coords, centers)
+        coords, vectors = self.__optimizer(coords, centers)
 
         #Set attributes to optimized values
         self.__hydCoords = coords[:len(self.__hydCoords)]
@@ -689,14 +684,12 @@ class Wetter:
     def wet(self):
         """Creates atoms at the calculated coordinates
 
-        Returns
-        -------
-        coords : ndarray
-            2D array containing coordinates for all atoms in solvate
-        elements : array
-            Array containing the element symbols
-        """
+        Notes
+        -----
+        Updates the `coords` and `elements` attributes of the `Wetter`
+        object.
 
+        """
         hydCoords, hydElements = mac.add_hydroxyl(self.__hydCoords, 
                                                   self.__hydVectors, 
                                                   self.theta)
@@ -711,14 +704,52 @@ class Wetter:
         self.elements = elements
         self.__verboseprint("Generating output...")
 
-        minODist, minHDist, minStructDist = shortest_distance(coords, elements, self.topol.trj.xyz[0]*10)
-        self.__verboseprint("Shortest O-O distance in solvent: " + str(minODist) + " Angstrom.")
-        self.__verboseprint("Shortest H-H distance in solvent: " + str(minHDist) + " Angstrom.")
-        self.__verboseprint("Shortest distance between solvent and structure: " + str(minStructDist) + " Angstrom.\n")
+        minODist,\
+            minHDist,\
+            minStructDist = shortest_distance(coords, elements,\
+                                              self.topol.trj.xyz[0]*10)
+        self.__verboseprint("Shortest O-O distance in solvent: " +\
+                             str(minODist) + " Angstrom.")
+        self.__verboseprint("Shortest H-H distance in solvent: " +\
+                             str(minHDist) + " Angstrom.")
+        self.__verboseprint("Shortest distance between solvent and structure:"\
+                            + " " + str(minStructDist) + " Angstrom.\n")
 
     def remove_low_coordinated(self, Nmax, element, check = 'all'):
-        self.topol = remove_low_coordinated(self.topol, Nmax, element, self.silent, check)
+        """Removes low coordinated atoms
+
+        Parameters
+        ----------
+        Nmax : int
+            Maximum coordination for the specified element
+        element : string
+            Element symbol
+        check : {'all', 'metal', 'none'}
+            wether to remove all, none or only oxygen low coordinated atoms
+        
+        Notes
+        -----
+        Low coordinated atoms are `Nmax - 1` and `Nmax - 2` coordinated
+
+        """
+        self.topol = remove_low_coordinated(self.topol, Nmax, element,\
+                                            self.silent, check)
 
     def save(self, fileWet, resname = 'SOL'):
+        """Saves the new solvated structure
+
+        Parameters
+        ----------
+        fileWet : string
+            Name of output file
+        resname : string
+            Residue name for the solvate molecules
+
+        Notes
+        -----
+        fileWet should have the extension `.pdb` since it's in the pdb format
+
+        """
         self.topol.trj.save(fileWet, force_overwrite = True)
-        append_atoms(file = fileWet, coords = self.coords, elements = self.elements, resname = resname)
+        append_atoms(file = fileWet, coords = self.coords,\
+                     elements = self.elements, resname = resname)

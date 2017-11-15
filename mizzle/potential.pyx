@@ -1,5 +1,7 @@
 """Cython module with objective function
 
+:math: `D(e^{-2\sigma(r-r_0)}  -  2e^{-\sigma(r  -  r_0)}) + \frac{s(-2De^{-2\sigma r_0}(e^{\sigma r_0}-1))}{3}e^{-3\sigma(r-r_0)}`
+
 Notes
 -----
 The objective function is minimized during optimization
@@ -28,7 +30,7 @@ def potential(np.ndarray[np.float64_t, ndim=1] solvateCoords,
                 np.ndarray[ITYPE_t, ndim=1] centerNumNeighbours,
                 np.ndarray[np.float64_t, ndim=1] boxVectors):
 
-    """Potential function
+    """Potential functionnn
 
     Parameters
     ----------

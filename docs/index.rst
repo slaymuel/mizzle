@@ -12,7 +12,6 @@ Welcome to mizzle's documentation!
 
    modules
 
-
 Indices and tables
 ==================
 
