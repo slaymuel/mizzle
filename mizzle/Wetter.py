@@ -215,7 +215,7 @@ class Wetter:
         centerNumNeighbours = np.empty([0], dtype = int)
 
         # Get neighbours to each center
-        print("Calculating guesses for the optimizer:")
+        self.__verboseprint("Calculating guesses for the optimizer:")
         i = 0
         self.__j = len(centers)
         for center in centers:
@@ -252,7 +252,7 @@ class Wetter:
             i += 1
             self.__i += 1
 
-        print("\n")
+        self.__verboseprint("\n")
 
         self.__i = 0
         self.centers = centers
@@ -704,20 +704,26 @@ class Wetter:
         self.coords = coords
         self.elements = elements
         self.__verboseprint("Generating output...")
-
-        minODist,\
-            minHDist,\
-            minStructDist,\
-            maxStructDist = shortest_distance(coords, elements,\
-                                              self.topol.trj.xyz[0]*10)
+        minHDist = 0
+        minODist = 0
+        minStructDist = 0
+        maxStructDist = 0
+        if(not self.silent):
+            minODist,\
+                minHDist,\
+                minStructDist,\
+                maxStructDist = shortest_distance(coords.astype(float), elements,\
+                                                (self.topol.trj.xyz[0]*10).astype(float),\
+                                                self.boxVectors.astype(float))
         self.__verboseprint("Shortest O-O distance in solvent: " +\
                              str(minODist) + " Angstrom.")
         self.__verboseprint("Shortest H-H distance in solvent: " +\
                              str(minHDist) + " Angstrom.")
         self.__verboseprint("Shortest distance between solvent and structure:"\
                             + " " + str(minStructDist) + " Angstrom.")
-        self.__verboseprint("Longest distance between solvent and structure:"\
-                            + " " + str(maxStructDist) + " Angstrom.\n")
+        self.__verboseprint("Longest distance between solvent oxygens and "+\
+                            "structure: " + str(maxStructDist) +\
+                            " Angstrom.\n")
 
     def remove_low_coordinated(self, Nmax, element, check = 'all'):
         """Removes low coordinated atoms
@@ -757,3 +763,4 @@ class Wetter:
         self.topol.trj.save(fileWet, force_overwrite = True)
         append_atoms(file = fileWet, coords = self.coords,\
                      elements = self.elements, resname = resname)
+        self.__verboseprint("Added " + str(len(self.__watCoords)) + " waters and " + str(len(self.__hydCoords)) + " hydroxyls to " + fileWet)

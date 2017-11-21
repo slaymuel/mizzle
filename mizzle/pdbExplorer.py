@@ -124,8 +124,6 @@ def append_atoms(file, resname, coords=[], elements = [], ):
             file.write("%s\n" % line.rstrip())
         file.close()
 
-        print("Added " + str(len(coords)) + " atoms to " + fileName)
-
 
 def remove_low_coordinated(topol, Nmax, element, silent, check):
     """Removes low coordinated (<Nmax-3) atoms
