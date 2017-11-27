@@ -107,17 +107,20 @@ class Wetter:
         self.solver = solver
 
         if(solver == 'L-BFGS-B'):
-            self.optOptions={'disp': False, 'ftol':1e-12, 'gtol':1e-12, 'iprint': 0,\
-                                  'eps': 1.4901161193847656e-8, 'maxiter': maxiter}
-            self.prepOptions={'disp': False, 'ftol':1e-10, 'gtol':1e-10, 'iprint': 0,\
-                                  'eps': 1.4901161193847656e-8, 'maxiter': 100}
+            self.optOptions={'disp': False, 'ftol':1e-12, 'gtol':1e-12,\
+                             'iprint': 0, 'eps': 1.4901161193847656e-8,\
+                             'maxiter': maxiter}
+            self.prepOptions={'disp': False, 'ftol':1e-10, 'gtol':1e-10,\
+                              'iprint': 0, 'eps': 1.4901161193847656e-8,\
+                              'maxiter': 100}
         elif(solver == "SLSQP"):
             self.optOptions={'disp': False, 'ftol':1e-10, 'iprint': 0,\
                      'eps': 1.4901161193847656e-8, 'maxiter':maxiter}
             self.prepOptions={'disp': False, 'ftol':1e-10, 'iprint': 0,\
                      'eps': 1.4901161193847656e-8, 'maxiter':100}
         else:
-            raise RuntimeError("Unknown solver {}, please choose 'L-BFGS-B' (default) or 'SLSQP'.".format(solver))
+            raise RuntimeError("Unknown solver {}, please choose 'L-BFGS-B'\
+                                (default) or 'SLSQP'.".format(solver))
 
         #Use radish (RAD-algorithm) to compute the coordination of each atom
         self.topol = Topologizer.from_coords(topol)
@@ -652,8 +655,10 @@ class Wetter:
             self.__watCenters = np.hstack((self.__watCenters,\
                                          centers[int(OH_frac*len(vectors)):]))
 
-            self.dMOH = np.append(self.dMOH, np.repeat(params['dMOH'], len(centers[:int(OH_frac*len(vectors))])))
-            self.dMOH2 = np.append(self.dMOH2, np.repeat(params['dMOH2'], len(centers[int(OH_frac*len(vectors)):])))
+            self.dMOH = np.append(self.dMOH, np.repeat(params['dMOH'],\
+                                  len(centers[:int(OH_frac*len(vectors))])))
+            self.dMOH2 = np.append(self.dMOH2, np.repeat(params['dMOH2'],\
+                                   len(centers[int(OH_frac*len(vectors)):])))
 
         elif(coordination == Nmax - 2):
             vectors, coords, centers = self.__calculate_pair_vectors(\
@@ -694,8 +699,10 @@ class Wetter:
             # self.watVectors = np.vstack((self.watVectors, vectors[1::2]))
             # self.watCenters = np.hstack((self.watCenters, centers[1::2]))
 
-            self.dMOH = np.append(self.dMOH, np.repeat(params['dMOH'], len(centers[randIndices])))
-            self.dMOH2 = np.append(self.dMOH2, np.repeat(params['dMOH2'], len(centers[mask])))
+            self.dMOH = np.append(self.dMOH, np.repeat(params['dMOH'],\
+                                  len(centers[randIndices])))
+            self.dMOH2 = np.append(self.dMOH2, np.repeat(params['dMOH2'],\
+                                   len(centers[mask])))
 
         else:
             raise ValueError('Can only hydrate Nmax - 1 and Nmax - 2 centers.\
@@ -813,4 +820,6 @@ class Wetter:
         self.topol.trj.save(fileWet, force_overwrite = True)
         append_atoms(file = fileWet, coords = self.coords,\
                      elements = self.elements, resname = resname)
-        self.__verboseprint("Added " + str(len(self.__watCoords)) + " waters and " + str(len(self.__hydCoords)) + " hydroxyls to " + fileWet)
+        self.__verboseprint("Added " + str(len(self.__watCoords)) +\
+                            " waters and " + str(len(self.__hydCoords)) +\
+                            " hydroxyls to " + fileWet)

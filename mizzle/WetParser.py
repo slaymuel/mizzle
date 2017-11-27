@@ -1,4 +1,4 @@
-"""Parses the configuration file and extract the maximum coordination for the metals
+"""Parses the configuration file
 
 """
 
@@ -35,7 +35,8 @@ def parse_config(file):
                 for subKeyWord in subKeyWords:
                     if(subKeyWord in content[i]):
                         colonIndex = content[i].index(":")
-                        tempDict[subKeyWord] = content[i][colonIndex + 2:].rstrip()
+                        tempDict[subKeyWord] =\
+                            content[i][colonIndex + 2:].rstrip()
                 i += 1
             atoms.append(tempDict)
 
@@ -86,7 +87,6 @@ def parse_data(element):
         if(element in content[i]):
             i += 1
             while(not any(atom in content[i] for atom in atomList)):
-
                 if("Nmax:" in content[i]):
                     colonIndex = content[i].index(":")
                     metalData['Nmax'] = int(content[i][colonIndex + 1:])
