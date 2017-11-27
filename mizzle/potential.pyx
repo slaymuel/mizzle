@@ -28,9 +28,11 @@ def potential(np.ndarray[np.float64_t, ndim=1] solvateCoords,
                 object topol,
                 np.ndarray[np.float64_t, ndim=2] centerNeighbours,
                 np.ndarray[ITYPE_t, ndim=1] centerNumNeighbours,
-                np.ndarray[np.float64_t, ndim=1] boxVectors):
+                np.ndarray[np.float64_t, ndim=1] boxVectors,
+                np.ndarray[np.float64_t, ndim=1] bondlengths,
+                np.ndarray[ITYPE_t, ndim=1] numSpecies):
 
-    """Potential functionnn
+    """Potential function
 
     Parameters
     ----------
@@ -80,7 +82,16 @@ def potential(np.ndarray[np.float64_t, ndim=1] solvateCoords,
         distance = ((solvateCoords[r*3] - centersXYZ[i][0])**2 +\
                     (solvateCoords[r*3+1] - centersXYZ[i][1])**2 +\
                     (solvateCoords[r*3+2] - centersXYZ[i][2])**2)**(1./2)
-        sumPot += D*(exp(-2*a*(distance-eqDist))-2*exp(-a*(distance-eqDist)))+s*(-2/3*D*exp(-2*a*eqDist)*(exp(a*eqDist)-1))*exp(-3*a*(distance-eqDist))
+        #sumPot += D*(exp(-2*a*(distance-eqDist))-2*exp(-a*(distance-eqDist)))+\
+        #        s*(-2/3*D*exp(-2*a*eqDist)*(exp(a*eqDist)-1))*exp(-3*a*(distance-eqDist))
+        #if(r > numSpecies[0]):
+        #    sumPot += D*(exp(-2*a*(distance-bondlengths[1]))-2*exp(-a*(distance-bondlengths[1])))+\
+        #            s*(-2/3*D*exp(-2*a*bondlengths[1])*(exp(a*bondlengths[1])-1))*exp(-3*a*(distance-bondlengths[1]))
+        #else:
+        #    sumPot += D*(exp(-2*a*(distance-bondlengths[0]))-2*exp(-a*(distance-bondlengths[0])))+\
+        #            s*(-2/3*D*exp(-2*a*bondlengths[0])*(exp(a*bondlengths[0])-1))*exp(-3*a*(distance-bondlengths[0]))
+        sumPot += D*(exp(-2*a*(distance-bondlengths[r]))-2*exp(-a*(distance-bondlengths[r])))+\
+                s*(-2/3*D*exp(-2*a*bondlengths[r])*(exp(a*bondlengths[r])-1))*exp(-3*a*(distance-bondlengths[r]))
         #sumPot += 5*(distance - 2.2)**2
 
         # Solvate-neighbours pair-potential
@@ -134,7 +145,9 @@ def potential_jac(np.ndarray[np.float64_t, ndim=1] solvateCoords,
                 object topol,
                 np.ndarray[np.float64_t, ndim=2] centerNeighbours,
                 np.ndarray[ITYPE_t, ndim=1] centerNumNeighbours,
-                np.ndarray[np.float64_t, ndim=1] boxVectors):
+                np.ndarray[np.float64_t, ndim=1] boxVectors,
+                np.ndarray[np.float64_t, ndim=1] bondlengths,
+                np.ndarray[ITYPE_t, ndim=1] numSpecies):
 
     """Jacobian of potential
 
@@ -177,18 +190,57 @@ def potential_jac(np.ndarray[np.float64_t, ndim=1] solvateCoords,
         distance = ((solvateCoords[3*i] - centersXYZ[i][0])**2 +\
                     (solvateCoords[3*i+1] - centersXYZ[i][1])**2 +\
                     (solvateCoords[3*i+2] - centersXYZ[i][2])**2)**(1./2)
+        #if(i > numSpecies[0]):
+        #    jac[3*i] = (2*a*(exp(bondlengths[1]*a)-1)*D*s*(solvateCoords[3*i] - centersXYZ[i][0])*exp(-3*a*(distance - bondlengths[1])-2*bondlengths[1]*a))/distance +\
+        #    D*((2*a*(solvateCoords[3*i] - centersXYZ[i][0])*exp(-a*(distance - bondlengths[1])))/distance) -\
+        #    D*((2*a*(solvateCoords[3*i] - centersXYZ[i][0])*exp(-2*a*(distance - bondlengths[1])))/distance)
 
-        jac[3*i] = (2*a*(exp(eqDist*a)-1)*D*s*(solvateCoords[3*i] - centersXYZ[i][0])*exp(-3*a*(distance - eqDist)-2*eqDist*a))/distance +\
-        D*((2*a*(solvateCoords[3*i] - centersXYZ[i][0])*exp(-a*(distance - eqDist)))/distance) -\
-        D*((2*a*(solvateCoords[3*i] - centersXYZ[i][0])*exp(-2*a*(distance - eqDist)))/distance)
+        #    jac[3*i+1] = (2*a*(exp(bondlengths[1]*a)-1)*D*s*(solvateCoords[3*i+1] - centersXYZ[i][1])*exp(-3*a*(distance - bondlengths[1])-2*bondlengths[1]*a))/distance +\
+        #    D*((2*a*(solvateCoords[3*i+1] - centersXYZ[i][1])*exp(-a*(distance - bondlengths[1])))/distance) -\
+        #    D*((2*a*(solvateCoords[3*i+1] - centersXYZ[i][1])*exp(-2*a*(distance - bondlengths[1])))/distance)
 
-        jac[3*i+1] = (2*a*(exp(eqDist*a)-1)*D*s*(solvateCoords[3*i+1] - centersXYZ[i][1])*exp(-3*a*(distance - eqDist)-2*eqDist*a))/distance +\
-        D*((2*a*(solvateCoords[3*i+1] - centersXYZ[i][1])*exp(-a*(distance - eqDist)))/distance) -\
-        D*((2*a*(solvateCoords[3*i+1] - centersXYZ[i][1])*exp(-2*a*(distance - eqDist)))/distance)
+        #    jac[3*i+2] = (2*a*(exp(bondlengths[1]*a)-1)*D*s*(solvateCoords[3*i+2] - centersXYZ[i][2])*exp(-3*a*(distance - bondlengths[1])-2*bondlengths[1]*a))/distance +\
+        #    D*((2*a*(solvateCoords[3*i+2] - centersXYZ[i][2])*exp(-a*(distance - bondlengths[1])))/distance) -\
+        #    D*((2*a*(solvateCoords[3*i+2] - centersXYZ[i][2])*exp(-2*a*(distance - bondlengths[1])))/distance)
+        #else:
+        #    jac[3*i] = (2*a*(exp(bondlengths[0]*a)-1)*D*s*(solvateCoords[3*i] - centersXYZ[i][0])*exp(-3*a*(distance - bondlengths[0])-2*bondlengths[0]*a))/distance +\
+        #    D*((2*a*(solvateCoords[3*i] - centersXYZ[i][0])*exp(-a*(distance - bondlengths[0])))/distance) -\
+        #    D*((2*a*(solvateCoords[3*i] - centersXYZ[i][0])*exp(-2*a*(distance - bondlengths[0])))/distance)
 
-        jac[3*i+2] = (2*a*(exp(eqDist*a)-1)*D*s*(solvateCoords[3*i+2] - centersXYZ[i][2])*exp(-3*a*(distance - eqDist)-2*eqDist*a))/distance +\
-        D*((2*a*(solvateCoords[3*i+2] - centersXYZ[i][2])*exp(-a*(distance - eqDist)))/distance) -\
-        D*((2*a*(solvateCoords[3*i+2] - centersXYZ[i][2])*exp(-2*a*(distance - eqDist)))/distance)
+        #    jac[3*i+1] = (2*a*(exp(bondlengths[0]*a)-1)*D*s*(solvateCoords[3*i+1] - centersXYZ[i][1])*exp(-3*a*(distance - bondlengths[0])-2*bondlengths[0]*a))/distance +\
+        #    D*((2*a*(solvateCoords[3*i+1] - centersXYZ[i][1])*exp(-a*(distance - bondlengths[0])))/distance) -\
+        #    D*((2*a*(solvateCoords[3*i+1] - centersXYZ[i][1])*exp(-2*a*(distance - bondlengths[0])))/distance)
+
+        #    jac[3*i+2] = (2*a*(exp(bondlengths[0]*a)-1)*D*s*(solvateCoords[3*i+2] - centersXYZ[i][2])*exp(-3*a*(distance - bondlengths[0])-2*bondlengths[0]*a))/distance +\
+        #    D*((2*a*(solvateCoords[3*i+2] - centersXYZ[i][2])*exp(-a*(distance - bondlengths[0])))/distance) -\
+        #    D*((2*a*(solvateCoords[3*i+2] - centersXYZ[i][2])*exp(-2*a*(distance - bondlengths[0])))/distance)  
+
+
+        jac[3*i] = (2*a*(exp(bondlengths[i]*a)-1)*D*s*(solvateCoords[3*i] - centersXYZ[i][0])*exp(-3*a*(distance - bondlengths[i])-2*bondlengths[i]*a))/distance +\
+        D*((2*a*(solvateCoords[3*i] - centersXYZ[i][0])*exp(-a*(distance - bondlengths[i])))/distance) -\
+        D*((2*a*(solvateCoords[3*i] - centersXYZ[i][0])*exp(-2*a*(distance - bondlengths[i])))/distance)
+
+        jac[3*i+1] = (2*a*(exp(bondlengths[i]*a)-1)*D*s*(solvateCoords[3*i+1] - centersXYZ[i][1])*exp(-3*a*(distance - bondlengths[i])-2*bondlengths[i]*a))/distance +\
+        D*((2*a*(solvateCoords[3*i+1] - centersXYZ[i][1])*exp(-a*(distance - bondlengths[i])))/distance) -\
+        D*((2*a*(solvateCoords[3*i+1] - centersXYZ[i][1])*exp(-2*a*(distance - bondlengths[i])))/distance)
+
+        jac[3*i+2] = (2*a*(exp(bondlengths[i]*a)-1)*D*s*(solvateCoords[3*i+2] - centersXYZ[i][2])*exp(-3*a*(distance - bondlengths[i])-2*bondlengths[i]*a))/distance +\
+        D*((2*a*(solvateCoords[3*i+2] - centersXYZ[i][2])*exp(-a*(distance - bondlengths[i])))/distance) -\
+        D*((2*a*(solvateCoords[3*i+2] - centersXYZ[i][2])*exp(-2*a*(distance - bondlengths[i])))/distance)  
+
+
+
+        #jac[3*i] = (2*a*(exp(eqDist*a)-1)*D*s*(solvateCoords[3*i] - centersXYZ[i][0])*exp(-3*a*(distance - eqDist)-2*eqDist*a))/distance +\
+        #D*((2*a*(solvateCoords[3*i] - centersXYZ[i][0])*exp(-a*(distance - eqDist)))/distance) -\
+        #D*((2*a*(solvateCoords[3*i] - centersXYZ[i][0])*exp(-2*a*(distance - eqDist)))/distance)
+
+        #jac[3*i+1] = (2*a*(exp(eqDist*a)-1)*D*s*(solvateCoords[3*i+1] - centersXYZ[i][1])*exp(-3*a*(distance - eqDist)-2*eqDist*a))/distance +\
+        #D*((2*a*(solvateCoords[3*i+1] - centersXYZ[i][1])*exp(-a*(distance - eqDist)))/distance) -\
+        #D*((2*a*(solvateCoords[3*i+1] - centersXYZ[i][1])*exp(-2*a*(distance - eqDist)))/distance)
+
+        #jac[3*i+2] = (2*a*(exp(eqDist*a)-1)*D*s*(solvateCoords[3*i+2] - centersXYZ[i][2])*exp(-3*a*(distance - eqDist)-2*eqDist*a))/distance +\
+        #D*((2*a*(solvateCoords[3*i+2] - centersXYZ[i][2])*exp(-a*(distance - eqDist)))/distance) -\
+        #D*((2*a*(solvateCoords[3*i+2] - centersXYZ[i][2])*exp(-2*a*(distance - eqDist)))/distance)
 
         #jac[3*i] = 10*(solvateCoords[3*i]-centersXYZ[i][0])*(denom-2.2)/denom
         #jac[3*i+1] = 10*(solvateCoords[3*i+1]-centersXYZ[i][1])*(denom-2.2)/denom

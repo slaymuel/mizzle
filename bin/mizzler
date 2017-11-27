@@ -49,7 +49,7 @@ import os
 from IPython import embed
 
 # mizzle imports
-from mizzle.WetParser import parse,get_max_coordination
+from mizzle.WetParser import parse_config, parse_data
 from mizzle.pdbExplorer import remove_low_coordinated,append_atoms
 from mizzle.Wetter import Wetter
 import mizzle.WetParser as wp
@@ -100,7 +100,7 @@ def main(argv=None):
         fileWet = "{}{}{}".format(root, "_wet", ext)
 
     # Call WetParser to parse config file
-    atoms, resname = parse(args.conf)
+    atoms, resname = parse_config(args.conf)
 
     if (not resname):
         resname = "SOL"
@@ -111,10 +111,13 @@ def main(argv=None):
     fraction = None
 
     print("Running Wetter with Config:\n")
-    print("Atom     Coordination    OH-fraction     OH2-fraction    Bulk-coordination")
+    print("Atom     Coordination    OH-fraction     OH2-fraction    Bulk-coordination   d_MOH   d_MOH2")
     for atom in atoms:
         element = atom.get("element")
-        Nmax = get_max_coordination(element)	#Get Nmax
+        metalData = parse_data(element)
+        Nmax = metalData['Nmax']
+        d_MOH = metalData['d_MOH']
+        d_MOH2 = metalData['d_MOH2']
         coordination = atom.get("coordination", None)
         if coordination == "surface":
             hydroxylFrac = float(atom.get("hydroxyl", None))
@@ -122,14 +125,14 @@ def main(argv=None):
             print (" " + atom.get('element') + "\t    " + \
                    str(atom.get('coordination')) + "\t     " +\
                    str(hydroxylFrac) + "\t      " + str(waterFrac) +\
-                   "\t         " + str(Nmax))
+                   "\t         " + str(Nmax)+ "\t      " + str(d_MOH) + "      " + str(d_MOH2))
         elif coordination == "defect":
             dHydroxylFrac = float(atom.get('hydroxyl', None))
             dWaterFrac = float(atom.get('water', None))
             print (" " + atom.get('element') + "\t    " + \
                    str(atom.get('coordination')) + "\t     " + \
                    str(dHydroxylFrac) + "\t      " + str(dWaterFrac) + \
-                   "\t         " + str(Nmax))
+                   "\t         " + str(Nmax)+ "\t      " + str(d_MOH) + "      " + str(d_MOH2))
         else:
             raise ValueError("Unknown keyword {}".format(coordination))
 
@@ -143,9 +146,9 @@ def main(argv=None):
 
     # Specify which types of atoms that should be hydrated
     wet.solvate({"Nmax": Nmax, "element": element, "coordination": Nmax - 1,\
-                 "OH": hydroxylFrac, "OH2": waterFrac, "O": 0.05})
+                 "OH": hydroxylFrac, "OH2": waterFrac, "O": 0.05, "dMOH": d_MOH, "dMOH2":d_MOH2})
     wet.solvate({"Nmax": Nmax, "element": element, "coordination": Nmax - 2,\
-                 "OH": dHydroxylFrac, "OH2": dWaterFrac, "O": 0.1})
+                 "OH": dHydroxylFrac, "OH2": dWaterFrac, "O": 0.1, "dMOH": d_MOH, "dMOH2":d_MOH2})
 
     # Run minimization
     wet.optimize()

@@ -2,7 +2,7 @@
 
 """
 
-def parse(file):
+def parse_config(file):
     """Parses the configuration in *file*
 
     """
@@ -60,8 +60,8 @@ def parse(file):
 
     return atoms, resname
 
-def get_max_coordination(element):
-    """Finds bulk coordination in MaxCoordinations.data
+def parse_data(element):
+    """Finds metal properties needed by the wetting algorithm metals.data
 
     """
 
@@ -70,17 +70,42 @@ def get_max_coordination(element):
     import os
     import mizzle.WetParser as wp
 
-    maxNf = os.path.join(os.path.dirname(wp.__file__), "MaxCoordinations.data")
+    atomList = ["Ti", "Fe", "Si"]
+    metalData = {}
+    maxNf = os.path.join(os.path.dirname(wp.__file__), "metals.data")
+    i = 0
+    foundDMOH = False
+    foundDMOH2 = False
+    foundMax = False
+
     f = open(maxNf)
-    
     content = f.readlines()
     f.close()
-    for line in content:
-        if(element in line):
-            colonIndex = line.index(":")
-            maxCoordination = int(line[colonIndex + 1:])
-            foundMax = True
-            return maxCoordination
-    if(not foundMax):
-        raise ValueError(("Could not find maximum coordination number for "
+
+    while(i < len(content)):
+        if(element in content[i]):
+            i += 1
+            while(not any(atom in content[i] for atom in atomList)):
+
+                if("Nmax:" in content[i]):
+                    colonIndex = content[i].index(":")
+                    metalData['Nmax'] = int(content[i][colonIndex + 1:])
+                    foundMax = True
+                
+                elif("d_MOH:" in content[i]):
+                    colonIndex = content[i].index(":")
+                    metalData['d_MOH'] = float(content[i][colonIndex + 1:])
+                    foundDMOH = True
+                elif("d_MOH2:" in content[i]):
+                    colonIndex = content[i].index(":")
+                    metalData['d_MOH2'] = float(content[i][colonIndex + 1:])
+                    foundDMOH2 = True
+
+                if(all([foundDMOH, foundDMOH2, foundMax])):
+                    return metalData
+                i += 1
+        i += 1
+
+    if(not (foundMax and foundDMOH and foundDMOH2)):
+        raise ValueError(("Data is missing for "
                           "element {} in {}.".format(element, maxNf)))

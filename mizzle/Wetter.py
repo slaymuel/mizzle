@@ -94,6 +94,10 @@ class Wetter:
         self.MOBondlength = MOBondlength
         self.HOHBondlength = HOHBondlength
         self.OHBondlength = OHBondlength
+        self.dMOH = []
+        self.dMOH2 = []
+        self.numOfOH = 0
+        self.numOfOH2 = 0
         self.theta = theta/360*2*np.pi
         self.lowFrac = 1
         self.highWaterFrac = 1
@@ -143,13 +147,18 @@ class Wetter:
         """Print progression of optimizer
 
         """
-        self.__optimizationLog.append(potential.potential(\
-                                      x,\
-                                      self.centers,\
-                                      self.topol,\
-                                      self.centerNeighbours,\
-                                      self.centerNumNeighbours,\
-                                      self.boxVectors))
+        if(self.optLog):
+            self.__optimizationLog.append(potential.potential(\
+                                        x,\
+                                        self.centers,\
+                                        self.topol,\
+                                        self.centerNeighbours,\
+                                        self.centerNumNeighbours,\
+                                        self.boxVectors,
+                                    np.append(self.dMOH,\
+                                                        self.dMOH2),
+                                    np.asarray(np.hstack((self.numOfOH,\
+                                                        self.numOfOH2)))))
 
         if(self.__i % 5 == 0 or self.__i == 1):
             self.__verboseprint('\r', end='')
@@ -191,6 +200,9 @@ class Wetter:
             Optimized M-O vectors
 
         """
+        self.numOfOH = len(self.__hydCenters)
+        self.numOfOH2 = len(self.__watCenters)
+
         vectors = np.empty([0, 3], dtype = float)
         cutoff = 6.0
         M = self.topol.trj.xyz[0][centers]*10
@@ -243,7 +255,11 @@ class Wetter:
                                 np.delete(coords, i, axis=0))), dtype=float),\
                                 np.asarray([len(neighbours[0])+\
                                            len(coords)-1]),\
-                                self.boxVectors),
+                                self.boxVectors,
+                                np.append(self.dMOH,\
+                                                      self.dMOH2),
+                                np.asarray(np.hstack((self.numOfOH,\
+                                                      self.numOfOH2)))),
                         jac = potential.potential_jac,
                         callback=self.__show_progress_prep,
                         method = self.solver,
@@ -263,7 +279,11 @@ class Wetter:
         start = timer()
         potential.potential(coords.flatten(), centers, self.topol,\
                             centerNeighbours, centerNumNeighbours,\
-                            self.boxVectors)
+                            self.boxVectors,
+                                np.append(self.dMOH,\
+                                                      self.dMOH2),
+                                np.asarray(np.hstack((self.numOfOH,\
+                                                      self.numOfOH2))))
         end = timer()
         self.__potTime = end-start
         self.__verboseprint("Potential takes: " + str(end-start) +\
@@ -272,7 +292,11 @@ class Wetter:
         start = timer()
         potential.potential_jac(coords.flatten(), centers, self.topol,\
                                 centerNeighbours, centerNumNeighbours,\
-                                self.boxVectors)
+                                self.boxVectors,
+                                np.append(self.dMOH,\
+                                                      self.dMOH2),
+                                np.asarray(np.hstack((self.numOfOH,\
+                                                      self.numOfOH2))))
         end = timer()
         self.__jacPotTime = end-start
         self.__verboseprint("Potential Jacobian takes: " + str(end-start) +\
@@ -285,7 +309,11 @@ class Wetter:
         self.__start = timer()
         res = minimize(potential.potential, coords,
                         args = (centers, self.topol, centerNeighbours,\
-                                centerNumNeighbours, self.boxVectors),
+                                centerNumNeighbours, self.boxVectors,
+                                np.append(self.dMOH,\
+                                                      self.dMOH2),
+                                np.asarray(np.hstack((self.numOfOH,\
+                                                      self.numOfOH2)))),
                         jac = potential.potential_jac,
                         method = self.solver,
                         callback = self.__show_progress,
@@ -595,24 +623,37 @@ class Wetter:
         OH2_frac = params['OH2']
         O_frac = params['O']
         Nmax = params['Nmax']
- 
+        dMOH = params['dMOH']
+        dMOH2 = params['dMOH2']
+
         if(coordination == Nmax - 1):
             vectors, coords, centers = self.__calculate_vectors(\
                                            coordination,\
                                            O_frac, OH_frac, OH2_frac,
                                            element)
+
             self.__hydCoords = np.vstack((self.__hydCoords,\
-                                        coords[:int(OH_frac*len(vectors))]))
+                                        self.topol.trj.xyz[0][centers[:int(OH_frac*len(vectors))]]*10+\
+                                        vectors[:int(OH_frac*len(vectors))]*dMOH))
+
+            # self.__hydCoords = np.vstack((self.__hydCoords,\
+            #                             coords[:int(OH_frac*len(vectors))]))
             self.__hydVectors = np.vstack((self.__hydVectors,\
                                          vectors[:int(OH_frac*len(vectors))]))
             self.__hydCenters = np.hstack((self.__hydCenters,\
                                          centers[:int(OH_frac*len(vectors))]))
+            #self.__watCoords = np.vstack((self.__watCoords,\
+            #                             coords[int(OH_frac*len(vectors)):]))
             self.__watCoords = np.vstack((self.__watCoords,\
-                                        coords[int(OH_frac*len(vectors)):]))
+                                        self.topol.trj.xyz[0][centers[int(OH_frac*len(vectors)):]]*10+\
+                                        vectors[int(OH_frac*len(vectors)):]*dMOH2))
             self.__watVectors = np.vstack((self.__watVectors,\
                                          vectors[int(OH_frac*len(vectors)):]))
             self.__watCenters = np.hstack((self.__watCenters,\
                                          centers[int(OH_frac*len(vectors)):]))
+
+            self.dMOH = np.append(self.dMOH, np.repeat(params['dMOH'], len(centers[:int(OH_frac*len(vectors))])))
+            self.dMOH2 = np.append(self.dMOH2, np.repeat(params['dMOH2'], len(centers[int(OH_frac*len(vectors)):])))
 
         elif(coordination == Nmax - 2):
             vectors, coords, centers = self.__calculate_pair_vectors(\
@@ -625,6 +666,9 @@ class Wetter:
             randIndices = random.sample(range(0, len(coords)),\
                                         int((OH_frac)*\
                                             float(len(coords))))
+            #self.__hydCoords = np.vstack((self.__hydCoords,\
+            #                            self.topol.trj.xyz[0][centers[randIndices]]+\
+            #                            vectors[randIndices]*dMOH))
 
             self.__hydCoords = np.vstack((self.__hydCoords, coords[randIndices]))
             self.__hydVectors = np.vstack((self.__hydVectors,\
@@ -633,6 +677,9 @@ class Wetter:
                                            centers[randIndices]))
             mask = np.ones(len(coords), np.bool)
             mask[randIndices] = 0
+            #self.__watCoords = np.vstack((self.__watCoords,\
+            #                            self.topol.trj.xyz[0][centers[mask]]+\
+            #                            vectors[mask]*dMOH2))
             self.__watCoords = np.vstack((self.__watCoords, coords[mask]))
             self.__watVectors = np.vstack((self.__watVectors, vectors[mask]))
             self.__watCenters = np.hstack((self.__watCenters, centers[mask]))
@@ -646,6 +693,9 @@ class Wetter:
             # self.watCoords = np.vstack((self.watCoords, coords[1::2]))
             # self.watVectors = np.vstack((self.watVectors, vectors[1::2]))
             # self.watCenters = np.hstack((self.watCenters, centers[1::2]))
+
+            self.dMOH = np.append(self.dMOH, np.repeat(params['dMOH'], len(centers[randIndices])))
+            self.dMOH2 = np.append(self.dMOH2, np.repeat(params['dMOH2'], len(centers[mask])))
 
         else:
             raise ValueError('Can only hydrate Nmax - 1 and Nmax - 2 centers.\
