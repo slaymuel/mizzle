@@ -5,3 +5,4 @@ Wetter module
     :members:
     :undoc-members:
     :show-inheritance:
+    :exclude-members: print

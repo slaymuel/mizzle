@@ -1,13 +1,13 @@
 """Cython module with objective function
 
-:math: `D(e^{-2\sigma(r-r_0)}  -  2e^{-\sigma(r  -  r_0)}) + \frac{s(-2De^{-2\sigma r_0}(e^{\sigma r_0}-1))}{3}e^{-3\sigma(r-r_0)}`
+.. math:: 
+    D(e^{-2\sigma(r-r_0)}  -  2e^{-\sigma(r  -  r_0)}) + \frac{s(-2De^{-2\sigma r_0}(e^{\sigma r_0}-1))}{3}e^{-3\sigma(r-r_0)}
 
 Notes
 -----
-The objective function is minimized during optimization
+Contains the objective function which is minimized during optimization
 
 """
-
 import cython
 import numpy as np
 cimport numpy as np
@@ -53,9 +53,8 @@ def potential(np.ndarray[np.float64_t, ndim=1] solvateCoords,
     -------
     sumPot
         Value of the potential at given solvate coordinates
-    """
 
-#unsigned int
+    """
     cdef int i = 0
     cdef int u = 0
     cdef int r = 0
@@ -161,7 +160,6 @@ def potential_jac(np.ndarray[np.float64_t, ndim=1] solvateCoords,
         Jacobian of potential.potential_c
 
     """
-
     cdef int i = 0
     cdef int j = 0
     cdef int k = 0

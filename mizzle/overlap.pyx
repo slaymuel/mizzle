@@ -18,6 +18,35 @@ def shortest_distance(np.ndarray[np.float64_t, ndim=2] solvCoords,
                       np.ndarray elements, np.ndarray[np.float64_t,
                       ndim=2] structCoords,
                       np.ndarray[np.float64_t, ndim=1] boxVectors):
+    """Overlap function
+
+    Parameters
+    ----------
+    solvateCoords : numpy ndarray
+        Independant variables of the potential function
+    centers : ndarray
+        Coordinates for centers which binds solvate
+    topol : Topologizer instance
+        Topologizer instance of system
+    centerNeighbours : ndarray(float)
+        coordinates of neighbours to solvate
+    centerNumNeighbours : array(int)
+        number of neighbours to each solvate
+    boxVectors : numpy array
+        Contains the box vectors
+
+    Returns
+    -------
+    minODist
+        Min distance between solvent oxygens
+    minHDist
+        Min distance of solvent hydrogens
+    minStructDist
+        Min solvent - structure distance
+    maxStructDist
+        Max solvent - structure distance
+
+    """
     cdef int i = 0
     cdef int j = 0
     cdef int k = 0

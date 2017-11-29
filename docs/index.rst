@@ -10,7 +10,13 @@ Welcome to mizzle's documentation!
    :maxdepth: 4
    :caption: Contents:
 
-   modules
+   mizzler
+   Wetter
+   AtomCreator
+   potential
+   overlap
+   WetParser
+   pdbExplorer
 
 Indices and tables
 ==================
