@@ -3,12 +3,12 @@ metal oxide surfaces.
 
 Example
 -------
-Using Wetter module in existing project::
+Using Wetter module in an existing project::
 
-    import mizzle.Wetter as mw
-    wet = mw('structure.pdb')
+    from mizzle import Wetter
+    wet = Wetter('structure.pdb')
     wet.remove_low_coordinated(Nmax, 'element')
-    wet.add_solvate({'Nmax': Nmax, 'element': element, 'coordination': coordination, 'OH': hydroxylFrac, 'OH2': waterFrac, 'O':0.05})
+    wet.solvate({'Nmax': Nmax, 'element': element, 'coordination': coordination, 'OH': hydroxylFrac, 'OH2': waterFrac, 'O':0.05})
     wet.optimize()
     wet.wet()
     wet.save('outputfile.pdb', 'residuename')
