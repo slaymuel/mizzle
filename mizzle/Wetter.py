@@ -8,7 +8,9 @@ Using Wetter module in an existing project::
     from mizzle import Wetter
     wet = Wetter('structure.pdb')
     wet.remove_low_coordinated(Nmax, 'element')
-    wet.solvate({'Nmax': Nmax, 'element': element, 'coordination': coordination, 'OH': hydroxylFrac, 'OH2': waterFrac, 'O':0.05})
+    wet.solvate({'Nmax': Nmax, 'element': element, 'coordination': coordination,
+                 'OH': hydroxylFrac, 'OH2': waterFrac, 'O':0.05, 'd_MOH2':2.2, 
+                 'd_MOH':2, '<MOH':115})
     wet.optimize()
     wet.wet()
     wet.save('outputfile.pdb', 'residuename')
@@ -45,6 +47,7 @@ class Wetter:
 
     Parameters
     ----------
+        .
         topol : string
             Path of pdb-file
         theta : double, optional
@@ -66,6 +69,7 @@ class Wetter:
 
     Attributes
     ----------
+        .
         coords : ndarray
             Coordinates of all solvate molecules, set after calling `wet()`
         elements : array
@@ -420,7 +424,6 @@ class Wetter:
 
 
             vectors = np.empty([0, 3], dtype = float)
-            coordinates = np.empty([0, 3], dtype = float)
 
             randIndices = random.sample(range(0, len(centerIndices)),
                                         int((OH_frac+OH2_frac)*\
@@ -496,25 +499,15 @@ class Wetter:
                     pairVec2 = np.dot(mac.rotate_around_vec(crossProd,\
                                                            -np.pi/7), pairVec2)
 
-                # Calculate coordinates
-                coord1 = self.topol.trj.xyz[0][center]*10 +\
-                         pairVec1*self.MOBondlength
-                coord2 = self.topol.trj.xyz[0][center]*10 +\
-                         pairVec2*self.MOBondlength
-
-                # Save relevant coordinates
                 vectors = np.vstack((vectors, pairVec1))
                 vectors = np.vstack((vectors, pairVec2))
                 centers = np.append(centers, center)
                 centers = np.append(centers, center)
-                coordinates = np.vstack((coordinates, coord1))
-                coordinates = np.vstack((coordinates, coord2))
 
-            return vectors, coordinates, centers
+            return vectors, centers
 
         else:
             return (np.empty([0, 3], dtype=float),
-                    np.empty([0, 3], dtype=float),
                     np.empty([0], dtype=int))
 
 
@@ -528,7 +521,6 @@ class Wetter:
 
         """
         vectors = np.empty([0, 3], dtype=float)
-        coords = np.empty([0, 3], dtype=float)
         
         vec = np.array([0,0,0])
         tempNeighbour = np.array([0,0,0])
@@ -578,17 +570,11 @@ class Wetter:
                     centers = np.append(centers, center)
                     vec = vec/np.linalg.norm(vec)
                     vectors = np.vstack((vectors, vec))
-                    vec = vec*self.MOBondlength
 
-                    #Save coordinates and correct units
-                    coord = self.topol.trj.xyz[0][center]*10 + vec
-                    coords = np.vstack((coords, coord))
-
-            return vectors, coords, centers
+            return vectors, centers
 
         else: # Else return empty arrays
             return (np.empty([0, 3], dtype=float),
-                    np.empty([0, 3], dtype=float),
                     np.empty([0], dtype=int))
 
 
@@ -627,7 +613,7 @@ class Wetter:
         angle = params['<MOH']
 
         if(coordination == Nmax - 1):
-            vectors, coords, centers = self.__calculate_vectors(\
+            vectors, centers = self.__calculate_vectors(\
                                            coordination,\
                                            O_frac, OH_frac, OH2_frac,
                                            element)
@@ -664,31 +650,31 @@ class Wetter:
                                          len(centers[:int(OH_frac*len(vectors))])))
 
         elif(coordination == Nmax - 2):
-            vectors, coords, centers = self.__calculate_pair_vectors(\
+            vectors, centers = self.__calculate_pair_vectors(\
                                            coordination,\
                                            O_frac, OH_frac, OH2_frac,
                                            element)
-            if(np.isnan(coords).any()):
+            if(np.isnan(vectors).any()):
                 raise ValueError("Some coordinates are NaN, aborting....")
 
-            randIndices = random.sample(range(0, len(coords)),\
+            randIndices = random.sample(range(0, len(vectors)),\
                                         int((OH_frac)*\
-                                            float(len(coords))))
-            #self.__hydCoords = np.vstack((self.__hydCoords,\
-            #                            self.topol.trj.xyz[0][centers[randIndices]]+\
-            #                            vectors[randIndices]*dMOH))
+                                            float(len(vectors))))
+            self.__hydCoords = np.vstack((self.__hydCoords,\
+                                        self.topol.trj.xyz[0][centers[randIndices]]*10+\
+                                        vectors[randIndices]*dMOH))
 
-            self.__hydCoords = np.vstack((self.__hydCoords, coords[randIndices]))
+            #self.__hydCoords = np.vstack((self.__hydCoords, coords[randIndices]))
             self.__hydVectors = np.vstack((self.__hydVectors,\
                                            vectors[randIndices]))
             self.__hydCenters = np.hstack((self.__hydCenters,\
                                            centers[randIndices]))
-            mask = np.ones(len(coords), np.bool)
+            mask = np.ones(len(vectors), np.bool)
             mask[randIndices] = 0
-            #self.__watCoords = np.vstack((self.__watCoords,\
-            #                            self.topol.trj.xyz[0][centers[mask]]+\
-            #                            vectors[mask]*dMOH2))
-            self.__watCoords = np.vstack((self.__watCoords, coords[mask]))
+            self.__watCoords = np.vstack((self.__watCoords,\
+                                        self.topol.trj.xyz[0][centers[mask]]*10+\
+                                        vectors[mask]*dMOH2))
+            #self.__watCoords = np.vstack((self.__watCoords, coords[mask]))
             self.__watVectors = np.vstack((self.__watVectors, vectors[mask]))
             self.__watCenters = np.hstack((self.__watCenters, centers[mask]))
 
