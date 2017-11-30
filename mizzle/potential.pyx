@@ -1,8 +1,9 @@
-"""Cython module with objective function
+"""Cython module with objective function:
 
 .. math:: 
     D(e^{-2\sigma(r-r_0)}-2e^{-\sigma(r-r_0)})+
-    \\frac{s(-2De^{-2\\sigma r_0}(e^{\\sigma r_0}-1))}{3}e^{-3\sigma(r-r_0)}
+    \\frac{s(-2De^{-2\\sigma r_0}(e^{\\sigma r_0}-1))}{3}e^{-3\sigma(r-r_0)}+\\
+    \sum_{i,j}\\frac{A}{(r_{ij})^4}+\sum_{i,k}\\frac{B}{r_{ik}}
 
 Notes
 -----

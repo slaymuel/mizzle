@@ -78,6 +78,7 @@ def parse_data(element):
     foundDMOH = False
     foundDMOH2 = False
     foundMax = False
+    foundAngle = False
 
     f = open(maxNf)
     content = f.readlines()
@@ -100,8 +101,12 @@ def parse_data(element):
                     colonIndex = content[i].index(":")
                     metalData['d_MOH2'] = float(content[i][colonIndex + 1:])
                     foundDMOH2 = True
+                elif("<MOH:" in content[i]):
+                    colonIndex = content[i].index(":")
+                    metalData['<MOH'] = float(content[i][colonIndex + 1:])
+                    foundAngle = True
 
-                if(all([foundDMOH, foundDMOH2, foundMax])):
+                if(all([foundDMOH, foundDMOH2, foundMax, foundAngle])):
                     return metalData
                 i += 1
         i += 1

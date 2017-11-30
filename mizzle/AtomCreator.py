@@ -150,7 +150,7 @@ def add_oxygen(coords, vectors):
         elements.extend('O')
     return atoms, elements
 
-def add_hydroxyl(coords, vectors, theta):
+def add_hydroxyl(coords, vectors, theta, angles):
     """Creates hydroxyl at specified coordinates
 
     Parameters
@@ -177,7 +177,7 @@ def add_hydroxyl(coords, vectors, theta):
         H = np.array([np.sin(theta/2), 0, np.cos(theta/2)])
 
         #No need to rotate O since it lies on the x-axis
-        angle = np.pi - np.arccos(np.cos(np.radians(115))/\
+        angle = np.pi - np.arccos(np.cos(np.radians(angles[i]))/\
                                   np.cos(np.radians(104.5/2)))
         H = __xRotate(H, angle)
 
@@ -208,7 +208,7 @@ def add_hydroxyl(coords, vectors, theta):
         elements.extend('H')
     return atoms, elements
 
-def add_water(coords, vectors, theta):
+def add_water(coords, vectors, theta, angles):
     """Creates water molecules at specified coordinates
 
     Parameters
@@ -235,7 +235,7 @@ def add_water(coords, vectors, theta):
         H2 = np.array([-np.sin(theta/2), 0, np.cos(theta/2)])
 
         #No need to rotate O since it lies in the xz plane
-        angle = np.pi - np.arccos(np.cos(np.radians(115))/\
+        angle = np.pi - np.arccos(np.cos(np.radians(angles[i]))/\
                                          np.cos(np.radians(104.5/2)))
         H1 = __xRotate(H1, angle)
         H2 = __xRotate(H2, angle)

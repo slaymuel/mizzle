@@ -89,6 +89,8 @@ class Wetter:
         self.__oxyCenters = np.empty([0], dtype=float)
         self.__dMOH = []
         self.__dMOH2 = []
+        self.__watAngles = []
+        self.__hydAngles = []
         self.__numOfOH = 0
         self.__numOfOH2 = 0
 
@@ -622,6 +624,7 @@ class Wetter:
         Nmax = params['Nmax']
         dMOH = params['dMOH']
         dMOH2 = params['dMOH2']
+        angle = params['<MOH']
 
         if(coordination == Nmax - 1):
             vectors, coords, centers = self.__calculate_vectors(\
@@ -653,6 +656,12 @@ class Wetter:
                                   len(centers[:int(OH_frac*len(vectors))])))
             self.__dMOH2 = np.append(self.__dMOH2, np.repeat(params['dMOH2'],\
                                    len(centers[int(OH_frac*len(vectors)):])))
+            self.__watAngles = np.append(self.__watAngles,\
+                                         np.repeat(angle,\
+                                         len(centers[int(OH_frac*len(vectors)):])))
+            self.__hydAngles = np.append(self.__hydAngles,\
+                                         np.repeat(angle,\
+                                         len(centers[:int(OH_frac*len(vectors))])))
 
         elif(coordination == Nmax - 2):
             vectors, coords, centers = self.__calculate_pair_vectors(\
@@ -697,13 +706,14 @@ class Wetter:
                                   len(centers[randIndices])))
             self.__dMOH2 = np.append(self.__dMOH2, np.repeat(params['dMOH2'],\
                                    len(centers[mask])))
+            self.__watAngles = np.append(self.__watAngles, np.repeat(angle, len(centers[mask])))
+            self.__hydAngles = np.append(self.__hydAngles, np.repeat(angle, len(centers[randIndices])))
 
         else:
             raise ValueError('Can only hydrate Nmax - 1 and Nmax - 2 centers.\
                              You tried to hydrate ' + str(Nmax) + ' - ' +\
                              str(coordination-Nmax) + ' centers. To solve this\
                                                        issue edit config.wet.')
-
 
     def optimize(self):
         """Maximize distance between added solvate and it's neighbours
@@ -744,11 +754,13 @@ class Wetter:
         """
         hydCoords, hydElements = mac.add_hydroxyl(self.__hydCoords, 
                                                   self.__hydVectors, 
-                                                  self.theta)
+                                                  self.theta,
+                                                  self.__hydAngles)
         
         watCoords, watElements = mac.add_water(self.__watCoords, 
                                                self.__watVectors, 
-                                               self.theta)
+                                               self.theta,
+                                               self.__watAngles)
 
         coords = np.concatenate((watCoords, hydCoords))
         elements = np.concatenate((watElements, hydElements))

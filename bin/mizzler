@@ -92,17 +92,18 @@ def main(argv=None):
     hydroxylFrac = None
     fraction = None
 
-    print("______________________________________________________________")
+    print("______________________________________________________________________")
     print("Running Wetter with Config:")
-    print("--------------------------------------------------------------")
+    print("----------------------------------------------------------------------")
     print("Atom     Type    OH-frac     OH2-frac    "+\
-          "Nmax   d_MOH   d_MOH2")
+          "Nmax   d_MOH   d_MOH2    <MOH")
     for atom in atoms:
         element = atom.get("element")
         metalData = parse_data(element)
         Nmax = metalData['Nmax']
         d_MOH = metalData['d_MOH']
         d_MOH2 = metalData['d_MOH2']
+        angle = metalData['<MOH']
         coordination = atom.get("coordination", None)
         if coordination == "surface":
             hydroxylFrac = float(atom.get("hydroxyl", None))
@@ -111,7 +112,7 @@ def main(argv=None):
                    str(atom.get('coordination')) + "\t   " +\
                    str(hydroxylFrac) + "\t       " + str(waterFrac) +\
                    "\t   " + str(Nmax)+ "\t " + str(d_MOH) +\
-                   "      " + str(d_MOH2))
+                   "      " + str(d_MOH2) + "\t "+str(angle))
         elif coordination == "defect":
             dHydroxylFrac = float(atom.get('hydroxyl', None))
             dWaterFrac = float(atom.get('water', None))
@@ -119,12 +120,12 @@ def main(argv=None):
                    str(atom.get('coordination')) + "\t   " + \
                    str(dHydroxylFrac) + "\t       " + str(dWaterFrac) + \
                    "\t   " + str(Nmax)+ "\t " + str(d_MOH) +\
-                   "      " + str(d_MOH2))
+                   "      " + str(d_MOH2) + "\t "+str(angle))
         else:
             raise ValueError("Unknown keyword {}".format(coordination))
 
     print("Solvate residues will be named: " + resname)
-    print("______________________________________________________________")
+    print("______________________________________________________________________")
     ### RUN ALGORITHM ###
 
     # Create Wetter object
@@ -135,11 +136,11 @@ def main(argv=None):
     # Specify which types of atoms that should be hydrated
     wet.solvate({"Nmax": Nmax, "element": element, "coordination": Nmax - 1,\
                  "OH": hydroxylFrac, "OH2": waterFrac, "O": 0.05,\
-                 "dMOH": d_MOH, "dMOH2":d_MOH2})
+                 "dMOH": d_MOH, "dMOH2":d_MOH2, "<MOH":angle})
 
     wet.solvate({"Nmax": Nmax, "element": element, "coordination": Nmax - 2,\
                  "OH": dHydroxylFrac, "OH2": dWaterFrac, "O": 0.1,\
-                 "dMOH": d_MOH, "dMOH2":d_MOH2})
+                 "dMOH": d_MOH, "dMOH2":d_MOH2, "<MOH":angle})
 
     # Run minimization
     wet.optimize()
