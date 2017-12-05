@@ -8,7 +8,8 @@ atom Ti: defect
     water: 0.5
     hydroxyl: 0.5
 
-resname: HYD
+OHresname: HYD
+OH2resname: SOL
 
 end
 

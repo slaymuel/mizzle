@@ -8,7 +8,8 @@ import numpy as np
 import mdtraj as md
 from IPython import embed
 
-def append_atoms(file, resname, coords=[], elements = [], ):
+def append_atoms(file, OHresname, OH2resname, coords=[], elements = [],\
+                 numOfOH2=0):
     """Append atoms to pdb file
 
     Parameters
@@ -40,7 +41,6 @@ def append_atoms(file, resname, coords=[], elements = [], ):
         nrAtoms = len(indices)
 
         # Variables for the .pdb format
-        residueName = resname
         chainIdentifier = 'A'
         residueSequenceNumber = '2'
         occupancy = '1.00'
@@ -49,7 +49,11 @@ def append_atoms(file, resname, coords=[], elements = [], ):
         j = 0
         # Prepare list of atoms to be appended to pdb file
         for coord in coords:
-            
+            if(j < numOfOH2*3):
+                residueName = OH2resname
+            else:
+                residueName = OHresname
+
             i = 4
             nrAtoms += 1
             tempString = "ATOM"

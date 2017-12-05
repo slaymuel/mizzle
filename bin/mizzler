@@ -82,10 +82,12 @@ def main(argv=None):
         fileWet = "{}{}{}".format(root, "_wet", ext)
 
     # Call WetParser to parse config file
-    atoms, resname = parse_config(args.conf)
+    atoms, OHresname, OH2resname = parse_config(args.conf)
 
-    if (not resname):
-        resname = "SOL"
+    if (not OHresname):
+        OHresname = "SOL"
+    if (not OH2resname):
+        OH2resname = "SOL"
     # Get element from config.wet
     element = atoms[0].get("element", None)
     waterFrac = None
@@ -124,7 +126,7 @@ def main(argv=None):
         else:
             raise ValueError("Unknown keyword {}".format(coordination))
 
-    print("Solvate residues will be named: " + resname)
+    print("Solvate residues will be named: OH -> " + OHresname + ", OH2 -> " + OH2resname)
     print("______________________________________________________________________")
     ### RUN ALGORITHM ###
 
@@ -147,7 +149,7 @@ def main(argv=None):
 
     #Create atoms and append to file
     wet.wet()
-    wet.save(fileWet, resname)
+    wet.save(fileWet, OHresname, OH2resname)
 
 if __name__ == "__main__":
     sys.exit(main())

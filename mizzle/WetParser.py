@@ -16,7 +16,8 @@ def parse_config(file):
                    "OH bond length", "MOH bond length",
                    "bond angle", "water", "hydroxyl", "fraction"]
     atoms = []
-    resname = None
+    OHresname = None
+    OH2resname = None
     solver = []
     i = 0
 
@@ -42,13 +43,18 @@ def parse_config(file):
 
             continue
 
-        elif("resname" in content[i]):
+        elif("OHresname" in content[i]):
             colonIndex = content[i].index(":")
-            resname = content[i][colonIndex+1:].strip()
-            if(len(resname) > 3):
+            OHresname = content[i][colonIndex+1:].strip()
+            if(len(OHresname) > 3):
                 raise LookupError(("Error in config file: resname is \
                                     restricted to 3 characters"))
-
+        elif("OH2resname" in content[i]):
+            colonIndex = content[i].index(":")
+            OH2resname = content[i][colonIndex+1:].strip()
+            if(len(OH2resname) > 3):
+                raise LookupError(("Error in config file: resname is \
+                                    restricted to 3 characters"))
         elif(content[i].strip() == "end"):
             break
 
@@ -59,7 +65,7 @@ def parse_config(file):
                      "Water and hydroxyl fractions in config file does\
                       not sum to 1!"
 
-    return atoms, resname
+    return atoms, OHresname, OH2resname
 
 def parse_data(element):
     """Finds metal properties needed by the wetting algorithm metals.data

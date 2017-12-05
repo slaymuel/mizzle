@@ -779,7 +779,7 @@ class Wetter:
         """
         self.topol = rlc(self.topol, Nmax, element, self.silent, check)
 
-    def save(self, fileWet, resname = 'SOL'):
+    def save(self, fileWet, OHresname = 'HYD', OH2resname = 'SOL'):
         """Saves the new solvated structure
 
         Parameters
@@ -796,7 +796,8 @@ class Wetter:
         """
         self.topol.trj.save(fileWet, force_overwrite = True)
         append_atoms(file = fileWet, coords = self.coords,\
-                     elements = self.elements, resname = resname)
+                     elements = self.elements, OHresname = OHresname,\
+                     OH2resname = OH2resname, numOfOH2 = len(self.__watCoords))
         self.__verboseprint("Added " + str(len(self.__watCoords)) +\
                             " waters and " + str(len(self.__hydCoords)) +\
                             " hydroxyls to " + fileWet)
