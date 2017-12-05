@@ -334,7 +334,7 @@ class Wetter:
                 file.write(str(ind+1)+"        \t"+str(line)+"\n")
             print("\n")
             print("Output from Minimizer:")
-            file.write(str(res))
+            file.write(str(res) + "\n")
             file.close()
 
         coords = np.reshape(res.x, (-1, 3))# Since minimization returns flat

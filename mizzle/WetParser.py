@@ -59,11 +59,11 @@ def parse_config(file):
             break
 
         i += 1
-    for atom in atoms:
-        assert float(atom.get('water', 0)) +\
-                     float(atom.get('hydroxyl', 0)) == 1,\
-                     "Water and hydroxyl fractions in config file does\
-                      not sum to 1!"
+    #for atom in atoms:
+    #    assert float(atom.get('water', 0)) +\
+    #                 float(atom.get('hydroxyl', 0)) == 1,\
+    #                 "Water and hydroxyl fractions in config file does\
+    #                  not sum to 1!"
 
     return atoms, OHresname, OH2resname
 
