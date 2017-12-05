@@ -156,7 +156,7 @@ def remove_low_coordinated(topol, Nmax, element, silent, check):
         remove_metal = True
         remove_oxygen = True
     elif(check == 'none'):
-        print("check set to 'none', will not remove any low coordinated atoms...\n")
+        print("--check flag is set to 'none', will not remove any low coordinated atoms...\n")
         return topol
     elif(check == 'metal'):
         print("Will not remove low coordinated oxygen\n")

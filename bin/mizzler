@@ -94,8 +94,26 @@ def main(argv=None):
     hydroxylFrac = None
     fraction = None
 
+    print("\n")
+    print("       __I__")
+    print("   .-'\"  .  \"'-.")
+    print(" .'  / . ' . \  '.")
+    print("/_.-..-..-..-..-._\\ .-----------------------------------------.")
+    print("         #  _,,_   ( Looks like there's mizzle on the horizon. )")
+    print("         #/`    `\ /'-----------------------------------------'")
+    print("         / / 6 6\\ \\")
+    print("         \\/\\  Y /\\/")
+    print("         #/ `'U` \\    MM   MM I ZZZZ ZZZZ L    EEEE RRRRR")
+    print("       , (  \\   | \\   M M M M I   ZZ   ZZ L    E    R   RR")
+    print("       |\\|\\_/#  \\_/   M  M  M I  ZZ   ZZ  L    EEEE RRRRR")
+    print("       \\/'.  \  /'\\   M     M I ZZ   ZZ   L    E    R  RR")
+    print("        \\    /=\\  /   M     M I ZZZZ ZZZZ LLLL EEEE R   RR")
+    print("        /____)/____)")
+    print("\n")
+
+
     print("______________________________________________________________________")
-    print("Running Wetter with Config:")
+    print("Running Mizzler with Config:")
     print("----------------------------------------------------------------------")
     print("Atom     Type    OH-frac     OH2-frac    "+\
           "Nmax   d_MOH   d_MOH2    <MOH")
@@ -150,6 +168,17 @@ def main(argv=None):
     #Create atoms and append to file
     wet.wet()
     wet.save(fileWet, OHresname, OH2resname)
+    print("                    .------------------------------------.")
+    print("            _,,_   ( Well that was a quick burst of rain! )")
+    print("          /`    `\\ /'-----------------------------------'")
+    print("         / / 6 6\\ \\")
+    print("         \\/\\  Y /\\/")
+    print("          / `'U` \\ ")
+    print("       , (  \\   | \\")
+    print("       |\\|\\_/   \\_/ ")
+    print("       \\/'.  \\  /'\\ ")
+    print("        \\    /=\\  /")
+    print("        /____)/____)")
 
 if __name__ == "__main__":
     sys.exit(main())
