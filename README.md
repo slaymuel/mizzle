@@ -7,7 +7,7 @@ account. The motivation for this program lies therein and automatically adds
 hydration shells to arbitrary metal oxide surfaces.
 
 ## Description:
-Hydrates metal oxides with OH_2, O_H and O. In `config.wet` the user specifies
+Hydrates metal oxides with OH2 and OH. In `config.wet` the user specifies
 which metals to hydrate and in what ratio. Hydrating a crystal containing
 different metals is supported.
 
@@ -89,6 +89,5 @@ will put water on all Nmax-1 coordinated Ti atoms, each Nmax-2 coordinated atom 
 	*numpy
 	*scipy
 	*pandas
-	*pyquaternion
 	*radish
 

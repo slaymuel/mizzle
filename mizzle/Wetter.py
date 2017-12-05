@@ -28,6 +28,7 @@ from timeit import default_timer as timer
 import mdtraj as md
 from IPython import embed
 from scipy.optimize.optimize import _approx_fprime_helper
+
 # mizzle imports
 from mizzle import potential
 from mizzle.pdbExplorer import append_atoms,remove_low_coordinated
@@ -42,44 +43,35 @@ if sys.version_info[0] == 2:
         __builtin__.print(*args, **kwargs)
 
 class Wetter:
-    """
-    Wetter object
+    """Main class
 
     Parameters
     ----------
-        .
-        topol : string
-            Path of pdb-file
-        theta : double, optional
-            HOH bond angle. Default is 104.5.
-        MOBondlength : double, optional
-            M-O bond length. Default is 2.2
-        HOHBondlength : double, optional
-            H-O bond length in water. Default is 1
-        OHBondlength : double, optional
-            O-H bond length in hydroxyl, Default is 1
-        silent : bool, optional
-            enables/disables silent mode
-        optLog : bool, optional
-            Outputs log file from optimization
-        solver : string, optional
-            optimization method
-        maxiter : int, optional
-            maximum iterations in optimization
+    topol : string
+        Path of pdb-file.
+    silent : bool, optional
+        enables/disables silent mode.
+    theta : double, optional
+        HOH bond angle. Default is 104.5.
+    optLog : bool, optional
+        Outputs log file from optimization.
+    solver : string, optional
+        optimization method.
+    maxiter : int, optional
+        maximum iterations in optimization.
 
     Attributes
     ----------
-        .
-        coords : ndarray
-            Coordinates of all solvate molecules, set after calling `wet()`
-        elements : array
-            Elements of all atoms in solvate, set after calling `wet()`
+    coords : ndarray
+        Coordinates of all solvate molecules, set after calling `wet()`.
+    elements : array
+        Elements of all atoms in solvate, set after calling `wet()`.
 
     """
-    def __init__(self, topol, silent = False, theta=104.5, MOBondlength=2.2,\
-                 HOHBondlength=1, OHBondlength=1, optLog = False,\
+    def __init__(self, topol, silent = False, theta=104.5, optLog = False,\
                  solver = 'L-BFGS-B', maxiter=500):
 
+        # Private attributes
         self.__hydVectors = np.empty([0, 3], dtype=float)
         self.__hydCoords = np.empty([0, 3], dtype=float)
         self.__hydCenters = np.empty([0], dtype=float)
@@ -98,11 +90,8 @@ class Wetter:
         self.__numOfOH = 0
         self.__numOfOH2 = 0
 
-        #Input parameters
+        # Input parameters
         self.theta = theta
-        self.MOBondlength = MOBondlength
-        self.HOHBondlength = HOHBondlength
-        self.OHBondlength = OHBondlength
         self.theta = theta/360*2*np.pi
         self.lowFrac = 1
         self.highWaterFrac = 1
@@ -127,29 +116,30 @@ class Wetter:
             raise RuntimeError("Unknown solver {}, please choose 'L-BFGS-B'\
                                 (default) or 'SLSQP'.".format(solver))
 
-        #Use radish (RAD-algorithm) to compute the coordination of each atom
+        # Use radish (RAD-algorithm) to compute the coordination of each atom
         self.topol = Topologizer.from_coords(topol)
 
+        # Program works without box vectors
         if self.topol.trj.unitcell_lengths is None:
-            #raise RuntimeError("No box vectors in PDB file")
             self.boxVectors = np.array([0, 0, 0], dtype=float)
         else:
             self.boxVectors = 10*self.topol.trj.unitcell_lengths.reshape(-1).astype(float)
 
-        #Set up verbose print function
+        # Set up verbose print function
         self.__verboseprint = print if not silent else lambda *a, **k: None
         self.__verboseputs = puts if not silent else lambda *a, **k: None
 
-        self.__i = 0
-        self.__j = 0
-        self.__potTime = None
-        self.__jacPotTime = None
+        # Log each step from optimization
         self.__optimizationLog = list()
 
-        #temp
-        self.centers = None
-        self.centerNeighbours = None
-        self.centerNumNeighbours = None
+        # Attributes for show_progress()
+        self.__i = 0
+        self.__j = 0
+        self.__centers = None
+        self.__centerNeighbours = None
+        self.__centerNumNeighbours = None
+        self.__potTime = None
+        self.__jacPotTime = None
 
     def __show_progress(self, x):
         """Print progression of optimizer
@@ -158,10 +148,10 @@ class Wetter:
         if(self.optLog):
             self.__optimizationLog.append(potential.potential(\
                                         x,\
-                                        self.centers,\
+                                        self.__centers,\
                                         self.topol,\
-                                        self.centerNeighbours,\
-                                        self.centerNumNeighbours,\
+                                        self.__centerNeighbours,\
+                                        self.__centerNumNeighbours,\
                                         self.boxVectors,
                                     np.append(self.__dMOH,\
                                                         self.__dMOH2),
@@ -244,8 +234,6 @@ class Wetter:
 
             centerNumNeighbours = np.hstack((centerNumNeighbours,\
                                              len(neighbours[0])))
-            #centerNeighbours = np.vstack((centerNeighbours,\
-            #                        self.topol.trj.xyz[0][neighbours[0]]*10))
 
             centerArray = np.repeat(center, len(neighbours[0]))
             dispArray = np.vstack((neighbours, centerArray))
@@ -279,11 +267,11 @@ class Wetter:
         self.__verboseprint("\n")
 
         self.__i = 0
-        self.centers = centers
-        self.centerNeighbours = centerNeighbours
-        self.centerNumNeighbours = centerNumNeighbours
+        self.__centers = centers
+        self.__centerNeighbours = centerNeighbours
+        self.__centerNumNeighbours = centerNumNeighbours
 
-        #Time objective function
+        # Timings for objective function
         start = timer()
         potential.potential(coords.flatten(), centers, self.topol,\
                             centerNeighbours, centerNumNeighbours,\
@@ -337,18 +325,21 @@ class Wetter:
                                        " different optimizer using the"+\
                                        " -solver flag or increasing max"+\
                                        " iterations with -maxiter\n")
-        #print(res)
+
         if(self.optLog):
             file = open('minimization.log', 'w')
             file.write("Iteration:\tFunction value:\n")
             for ind, line in enumerate(self.__optimizationLog):
                 file.write(str(ind+1)+"        \t"+str(line)+"\n")
+            print("\n")
+            print("Output from Minimizer:")
+            file.write(str(res))
             file.close()
-        #print(res)
-        coords = np.reshape(res.x, (-1, 3))# Since minimization returns flat
-                                           # array we need to reshape
 
-        # Recalculate directional vectors
+        coords = np.reshape(res.x, (-1, 3))# Since minimization returns flat
+                                           # array.
+
+        # Recalculate directional vectors from optimized coordinates
         i = 0
         for coord in coords:
             vectors = np.vstack((vectors, (coord-M[i])/\
@@ -437,11 +428,13 @@ class Wetter:
                 sumVec = np.array([0, 0, 0], dtype=float)
                 points = np.vstack((points, self.topol.trj.xyz[0][center]*10))
 
+                # Get neighbours
                 neighbours = np.array(neighbourgraph[center])
                 centerArray = np.repeat(center, len(neighbours))
+
+                # Compute displacement vectors
                 dispArray = np.vstack((neighbours, centerArray))
                 dispArray = np.transpose(dispArray)
-
                 dispVectors = md.compute_displacements(self.topol.trj,\
                                                        dispArray,\
                                                        periodic = True)[0]
@@ -600,6 +593,8 @@ class Wetter:
                 M-OH bond distance
             dMOH2 : float
                 M-OH2 bond distance
+            <MOH : float
+                MOH angle
 
         """
         element = params['element']
@@ -613,23 +608,19 @@ class Wetter:
         angle = params['<MOH']
 
         if(coordination == Nmax - 1):
+            # Calculate directional vectors
             vectors, centers = self.__calculate_vectors(\
                                            coordination,\
                                            O_frac, OH_frac, OH2_frac,
                                            element)
-
+            # Calculate coordinates from directional vectors and save.
             self.__hydCoords = np.vstack((self.__hydCoords,\
                                         self.topol.trj.xyz[0][centers[:int(OH_frac*len(vectors))]]*10+\
                                         vectors[:int(OH_frac*len(vectors))]*dMOH))
-
-            # self.__hydCoords = np.vstack((self.__hydCoords,\
-            #                             coords[:int(OH_frac*len(vectors))]))
             self.__hydVectors = np.vstack((self.__hydVectors,\
                                          vectors[:int(OH_frac*len(vectors))]))
             self.__hydCenters = np.hstack((self.__hydCenters,\
                                          centers[:int(OH_frac*len(vectors))]))
-            #self.__watCoords = np.vstack((self.__watCoords,\
-            #                             coords[int(OH_frac*len(vectors)):]))
             self.__watCoords = np.vstack((self.__watCoords,\
                                         self.topol.trj.xyz[0][centers[int(OH_frac*len(vectors)):]]*10+\
                                         vectors[int(OH_frac*len(vectors)):]*dMOH2))
@@ -637,7 +628,7 @@ class Wetter:
                                          vectors[int(OH_frac*len(vectors)):]))
             self.__watCenters = np.hstack((self.__watCenters,\
                                          centers[int(OH_frac*len(vectors)):]))
-
+            # Save bondlengths and angles
             self.__dMOH = np.append(self.__dMOH, np.repeat(params['dMOH'],\
                                   len(centers[:int(OH_frac*len(vectors))])))
             self.__dMOH2 = np.append(self.__dMOH2, np.repeat(params['dMOH2'],\
@@ -657,37 +648,28 @@ class Wetter:
             if(np.isnan(vectors).any()):
                 raise ValueError("Some coordinates are NaN, aborting....")
 
+            # Get random indices where to place hydroxyl and calculate
+            # coordinates
             randIndices = random.sample(range(0, len(vectors)),\
                                         int((OH_frac)*\
                                             float(len(vectors))))
             self.__hydCoords = np.vstack((self.__hydCoords,\
                                         self.topol.trj.xyz[0][centers[randIndices]]*10+\
                                         vectors[randIndices]*dMOH))
-
-            #self.__hydCoords = np.vstack((self.__hydCoords, coords[randIndices]))
             self.__hydVectors = np.vstack((self.__hydVectors,\
                                            vectors[randIndices]))
             self.__hydCenters = np.hstack((self.__hydCenters,\
                                            centers[randIndices]))
+            # Create mask and calculate water coordiantes
             mask = np.ones(len(vectors), np.bool)
             mask[randIndices] = 0
             self.__watCoords = np.vstack((self.__watCoords,\
                                         self.topol.trj.xyz[0][centers[mask]]*10+\
                                         vectors[mask]*dMOH2))
-            #self.__watCoords = np.vstack((self.__watCoords, coords[mask]))
             self.__watVectors = np.vstack((self.__watVectors, vectors[mask]))
             self.__watCenters = np.hstack((self.__watCenters, centers[mask]))
 
-            # Take every other element as hydroxyl and the others as water since
-            # each 4-coordinated metal site should have one water and one 
-            # hydroxyl
-            # self.hydCoords = np.vstack((self.hydCoords, coords[::2]))
-            # self.hydVectors = np.vstack((self.hydVectors, vectors[::2]))
-            # self.hydCenters = np.hstack((self.hydCenters, centers[::2]))
-            # self.watCoords = np.vstack((self.watCoords, coords[1::2]))
-            # self.watVectors = np.vstack((self.watVectors, vectors[1::2]))
-            # self.watCenters = np.hstack((self.watCenters, centers[1::2]))
-
+            # Save bondlengths and angles
             self.__dMOH = np.append(self.__dMOH, np.repeat(params['dMOH'],\
                                   len(centers[randIndices])))
             self.__dMOH2 = np.append(self.__dMOH2, np.repeat(params['dMOH2'],\
@@ -713,13 +695,13 @@ class Wetter:
         coords = np.empty([0, 3], dtype=float)
         centers= np.empty([0], dtype=int)
 
-        #Stack coordinates and centers and call optimize()
+        #Collect coordinates and centers and call optimize()
         coords = np.vstack((coords, self.__hydCoords))
         coords = np.vstack((coords, self.__watCoords))
-
         centers = np.hstack((centers, self.__hydCenters.astype(int)))
         centers = np.hstack((centers, self.__watCenters.astype(int)))
 
+        # Optimize
         coords, vectors = self.__optimizer(coords, centers)
 
         #Set attributes to optimized values
@@ -738,11 +720,12 @@ class Wetter:
         object.
 
         """
+        # Create solvent molecules at calculated coordinates and rotate
+        # accordingly
         hydCoords, hydElements = mac.add_hydroxyl(self.__hydCoords, 
                                                   self.__hydVectors, 
                                                   self.theta,
                                                   self.__hydAngles)
-        
         watCoords, watElements = mac.add_water(self.__watCoords, 
                                                self.__watVectors, 
                                                self.theta,
@@ -757,6 +740,8 @@ class Wetter:
         minODist = 0
         minStructDist = 0
         maxStructDist = 0
+
+        # Generate output
         if(not self.silent):
             minODist,\
                 minHDist,\

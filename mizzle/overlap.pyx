@@ -22,18 +22,14 @@ def shortest_distance(np.ndarray[np.float64_t, ndim=2] solvCoords,
 
     Parameters
     ----------
-    solvateCoords : numpy ndarray
-        Independant variables of the potential function
-    centers : ndarray
-        Coordinates for centers which binds solvate
-    topol : Topologizer instance
-        Topologizer instance of system
-    centerNeighbours : ndarray(float)
-        coordinates of neighbours to solvate
-    centerNumNeighbours : array(int)
-        number of neighbours to each solvate
-    boxVectors : numpy array
-        Contains the box vectors
+    solvCoords : numpy ndarray
+        Coordinates for solvent atoms
+    elements : ndarray
+        Array with element symbols
+    structCoords : ndarray
+        Coordinates for structure coordinates
+    boxVectors : ndarray
+        Box vectors for PBC
 
     Returns
     -------
