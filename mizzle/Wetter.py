@@ -31,7 +31,8 @@ from scipy.optimize.optimize import _approx_fprime_helper
 
 # mizzle imports
 from mizzle import potential
-from mizzle.pdbExplorer import append_atoms,remove_low_coordinated
+from mizzle.pdbExplorer import append_atoms
+from mizzle.pdbExplorer import remove_low_coordinated as rlc
 import mizzle.AtomCreator as mac
 from mizzle.overlap import shortest_distance
 from mizzle.puts import puts
@@ -776,8 +777,7 @@ class Wetter:
         Low coordinated atoms are `Nmax - 1` and `Nmax - 2` coordinated
 
         """
-        self.topol = remove_low_coordinated(self.topol, Nmax, element,\
-                                            self.silent, check)
+        self.topol = rlc(self.topol, Nmax, element, self.silent, check)
 
     def save(self, fileWet, resname = 'SOL'):
         """Saves the new solvated structure
