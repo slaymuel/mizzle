@@ -217,6 +217,7 @@ def remove_low_coordinated(topol, Nmax, element, silent, check):
         trajectory = md.Trajectory(xyz, topology)
         trajectory.unitcell_vectors = topol.trj.unitcell_vectors
         topol = Topologizer.from_mdtraj(trajectory)
+
         if(len(topol.trj.xyz[0]) < 1):
             raise ValueError("Incompatible structure: When removing low coordinated atoms, all atoms where removed.")
 
