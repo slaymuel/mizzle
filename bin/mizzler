@@ -1,25 +1,6 @@
 #!/usr/bin/env python
 # PYTHON_ARGCOMPLETE_OK
-"""Wrapper for the Wetter module which performs the actual algorithm.
 
-Example
--------
-Usage::
-
-    $ ./mizzler structure.pdb
-
-Example config file::
-
-    atom Ti: surface
-        water: 1.0
-        hydroxyl: 0.0
-    atom Ti: defect
-        water: 0.5
-        hydroxyl: 0.5
-    resname SOL
-    end
-
-"""
 from radish import Topologizer
 import sys
 import argcomplete
@@ -103,11 +84,11 @@ def main(argv=None):
     print("         #/`    `\ /'-----------------------------------------'")
     print("         / / 6 6\\ \\")
     print("         \\/\\  Y /\\/")
-    print("         #/ `'U` \\    MM   MM I ZZZZ ZZZZ L    EEEE RRRRR")
-    print("       , (  \\   | \\   M M M M I   ZZ   ZZ L    E    R   RR")
-    print("       |\\|\\_/#  \\_/   M  M  M I  ZZ   ZZ  L    EEEE RRRRR")
-    print("       \\/'.  \  /'\\   M     M I ZZ   ZZ   L    E    R  RR")
-    print("        \\    /=\\  /   M     M I ZZZZ ZZZZ LLLL EEEE R   RR")
+    print("         #/ `'U` \\    MM   MM  II  ZZZZ  ZZZZ  LL     EEEE  RRRRR")
+    print("       , (  \\   | \\   M M M M  II    ZZ    ZZ  LL     EE    RR  RR")
+    print("       |\\|\\_/#  \\_/   M  M  M  II   ZZ    ZZ   LL     EEEE  RRRRR")
+    print("       \\/'.  \\  /'\\   M     M  II  ZZ    ZZ    LL     EE    RR RR")
+    print("        \\    /=\\  /   M     M  II  ZZZZ  ZZZZ  LLLLL  EEEE  RR  RR")
     print("        /____)/____)")
     print("\n")
 
@@ -168,17 +149,31 @@ def main(argv=None):
     #Create atoms and append to file
     wet.wet()
     wet.save(fileWet, OHresname, OH2resname)
-    print("                    .------------------------------------.")
-    print("            _,,_   ( Well that was a quick burst of rain! )")
-    print("          /`    `\\ /'-----------------------------------'")
-    print("         / / 6 6\\ \\")
-    print("         \\/\\  Y /\\/")
-    print("          / `'U` \\ ")
-    print("       , (  \\   | \\")
-    print("       |\\|\\_/   \\_/ ")
-    print("       \\/'.  \\  /'\\ ")
-    print("        \\    /=\\  /")
-    print("        /____)/____)")
+    print("               .------------------------------------.")
+    print("       _,,_   ( Well that was a quick burst of rain! )")
+    print("     /`    `\\ /'------------------------------------'")
+    print("    / / 6 6\\ \\")
+    print("    \\/\\  Y /\\/")
+    print("     / `'U` \\ ")
+    print("  , (  \\   | \\")
+    print("  |\\|\\_/   \\_/ ")
+    print("  \\/'.  \\  /'\\ ")
+    print("   \\    /=\\  /")
+    print("   /____)/____)")
+
+# "\"But we both know what memories can bring"
+# "They bring diamonds and rust\""
+# "- Judas Priest"
+
+# "\"And all that I have come to lose"
+# "Gone so long it doesn't matter anyway"
+# "And all that I have come to gain"
+# "Will remain with me until the bitter end"
+# "And when you sit and picture me"
+# "Remember sitting in the sun, dancing in the rain"
+# "The end is not the end you see"
+# "It's just the recognition of a memory\""
+# "- Mastodon"
 
 if __name__ == "__main__":
     sys.exit(main())

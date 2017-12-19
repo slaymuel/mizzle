@@ -117,6 +117,7 @@ class Wetter:
             raise RuntimeError("Unknown solver {}, please choose 'L-BFGS-B'\
                                 (default) or 'SLSQP'.".format(solver))
 
+        #Attributes
         # Use radish (RAD-algorithm) to compute the coordination of each atom
         self.topol = Topologizer.from_coords(topol)
 
@@ -125,6 +126,8 @@ class Wetter:
             self.boxVectors = np.array([0, 0, 0], dtype=float)
         else:
             self.boxVectors = 10*self.topol.trj.unitcell_lengths.reshape(-1).astype(float)
+        self.coords = []
+        self.elements = []
 
         # Set up verbose print function
         self.__verboseprint = print if not silent else lambda *a, **k: None
@@ -364,8 +367,8 @@ class Wetter:
         -------
         centerIndices
             Indices for all metal centers if there are any, otherwise empty
-        neighbourgrap
-            neighbourgraph if any atoms found, empty otherwise
+        neighbourgraph
+            Neighbourgraph if any atoms found, empty otherwise
         
         Notes
         -----

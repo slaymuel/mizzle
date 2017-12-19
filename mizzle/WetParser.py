@@ -1,9 +1,9 @@
-"""Parses the configuration file
+"""Parses the configuration files
 
 """
 
 def parse_config(file):
-    """Parses the configuration in *file*
+    """Parses *config.wet*
 
     """
 
@@ -68,7 +68,7 @@ def parse_config(file):
     return atoms, OHresname, OH2resname
 
 def parse_data(element):
-    """Finds metal properties needed by the wetting algorithm metals.data
+    """Finds metal properties needed by the wetting algorithm *metals.data*
 
     """
 

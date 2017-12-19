@@ -9,8 +9,8 @@ Welcome to mizzle's documentation!
 .. toctree::
    :maxdepth: 4
    :caption: Contents:
-
-   mizzler
+   
+   readme
    Wetter
    AtomCreator
    potential

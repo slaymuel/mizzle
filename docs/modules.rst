@@ -1,6 +1,5 @@
 mizzle
 ======
-
 .. toctree::
    :maxdepth: 4
 
