@@ -388,7 +388,7 @@ class Wetter:
         return (centerIndices, neighbourgraph)
 
 
-    def __calculate_pair_vectors(self, coordination, O_frac,\
+    def __calculate_pair_vectors(self, coordination,\
                                OH_frac, OH2_frac, center):
         """Calculate coordinates for solvate on for 4-coordinated atoms
 
@@ -508,7 +508,7 @@ class Wetter:
                     np.empty([0], dtype=int))
 
 
-    def __calculate_vectors(self, coordination, O_frac,\
+    def __calculate_vectors(self, coordination,\
                           OH_frac, OH2_frac, center):
         """Calculate coordinates for solvate on for 5-coordinated atoms
 
@@ -605,7 +605,6 @@ class Wetter:
         coordination = params['coordination']
         OH_frac = params['OH']
         OH2_frac = params['OH2']
-        O_frac = params['O']
         Nmax = params['Nmax']
         dMOH = params['dMOH']
         dMOH2 = params['dMOH2']
@@ -615,19 +614,23 @@ class Wetter:
             # Calculate directional vectors
             vectors, centers = self.__calculate_vectors(\
                                            coordination,\
-                                           O_frac, OH_frac, OH2_frac,
+                                           OH_frac, OH2_frac,
                                            element)
             # Calculate coordinates from directional vectors and save.
             self.__hydCoords = np.vstack((self.__hydCoords,\
-                                        self.topol.trj.xyz[0][centers[:int(OH_frac*len(vectors))]]*10+\
-                                        vectors[:int(OH_frac*len(vectors))]*dMOH))
+                                        self.topol.trj.xyz[0][centers[\
+                                            :int(OH_frac*len(vectors))]]*10+\
+                                            vectors[\
+                                            :int(OH_frac*len(vectors))]*dMOH))
             self.__hydVectors = np.vstack((self.__hydVectors,\
                                          vectors[:int(OH_frac*len(vectors))]))
             self.__hydCenters = np.hstack((self.__hydCenters,\
                                          centers[:int(OH_frac*len(vectors))]))
             self.__watCoords = np.vstack((self.__watCoords,\
-                                        self.topol.trj.xyz[0][centers[int(OH_frac*len(vectors)):]]*10+\
-                                        vectors[int(OH_frac*len(vectors)):]*dMOH2))
+                                    self.topol.trj.xyz[0][centers[\
+                                        int(OH_frac*len(vectors)):]]*10+\
+                                        vectors[\
+                                            int(OH_frac*len(vectors)):]*dMOH2))
             self.__watVectors = np.vstack((self.__watVectors,\
                                          vectors[int(OH_frac*len(vectors)):]))
             self.__watCenters = np.hstack((self.__watCenters,\
@@ -638,16 +641,16 @@ class Wetter:
             self.__dMOH2 = np.append(self.__dMOH2, np.repeat(params['dMOH2'],\
                                    len(centers[int(OH_frac*len(vectors)):])))
             self.__watAngles = np.append(self.__watAngles,\
-                                         np.repeat(angle,\
-                                         len(centers[int(OH_frac*len(vectors)):])))
+                                    np.repeat(angle,\
+                                    len(centers[int(OH_frac*len(vectors)):])))
             self.__hydAngles = np.append(self.__hydAngles,\
-                                         np.repeat(angle,\
-                                         len(centers[:int(OH_frac*len(vectors))])))
+                                    np.repeat(angle,\
+                                    len(centers[:int(OH_frac*len(vectors))])))
 
         elif(coordination == Nmax - 2):
             vectors, centers = self.__calculate_pair_vectors(\
                                            coordination,\
-                                           O_frac, OH_frac, OH2_frac,
+                                           OH_frac, OH2_frac,
                                            element)
             if(np.isnan(vectors).any()):
                 raise ValueError("Some coordinates are NaN, aborting....")
@@ -658,8 +661,8 @@ class Wetter:
                                         int((OH_frac)*\
                                             float(len(vectors))))
             self.__hydCoords = np.vstack((self.__hydCoords,\
-                                        self.topol.trj.xyz[0][centers[randIndices]]*10+\
-                                        vectors[randIndices]*dMOH))
+                                    self.topol.trj.xyz[0][centers[randIndices]]*10+\
+                                    vectors[randIndices]*dMOH))
             self.__hydVectors = np.vstack((self.__hydVectors,\
                                            vectors[randIndices]))
             self.__hydCenters = np.hstack((self.__hydCenters,\
@@ -668,8 +671,8 @@ class Wetter:
             mask = np.ones(len(vectors), np.bool)
             mask[randIndices] = 0
             self.__watCoords = np.vstack((self.__watCoords,\
-                                        self.topol.trj.xyz[0][centers[mask]]*10+\
-                                        vectors[mask]*dMOH2))
+                                    self.topol.trj.xyz[0][centers[mask]]*10+\
+                                    vectors[mask]*dMOH2))
             self.__watVectors = np.vstack((self.__watVectors, vectors[mask]))
             self.__watCenters = np.hstack((self.__watCenters, centers[mask]))
 
@@ -678,8 +681,12 @@ class Wetter:
                                   len(centers[randIndices])))
             self.__dMOH2 = np.append(self.__dMOH2, np.repeat(params['dMOH2'],\
                                    len(centers[mask])))
-            self.__watAngles = np.append(self.__watAngles, np.repeat(angle, len(centers[mask])))
-            self.__hydAngles = np.append(self.__hydAngles, np.repeat(angle, len(centers[randIndices])))
+            self.__watAngles = np.append(self.__watAngles,\
+                                         np.repeat(angle,\
+                                                   len(centers[mask])))
+            self.__hydAngles = np.append(self.__hydAngles,\
+                                         np.repeat(angle,\
+                                                   len(centers[randIndices])))
 
         else:
             raise ValueError('Can only hydrate Nmax - 1 and Nmax - 2 centers.\
@@ -753,7 +760,7 @@ class Wetter:
                 maxStructDist = shortest_distance(coords.astype(float), elements,\
                                                 (self.topol.trj.xyz[0]*10).astype(float),\
                                                 self.boxVectors.astype(float))
-            print("Shortest O-O distance in solvent: " +\
+            print("\nShortest O-O distance in solvent: " +\
                                 str(minODist) + " Angstrom.")
             print("Shortest H-H distance in solvent: " +\
                                 str(minHDist) + " Angstrom.")

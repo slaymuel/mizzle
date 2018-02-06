@@ -8,8 +8,10 @@ hydration shells to arbitrary metal oxide surfaces.
 
 ## Description:
 Hydrates metal oxides in the pdb format with OH2 and OH. In `config.wet` the
-user specifies which metals to hydrate and in what ratio. Hydrating a crystal
-containing different metals is supported.
+user specifies which metals to hydrate and in what ratio. Custom config files
+are included using the `-c` flag, if no config file is supplied the default
+config file is used. Hydrating a crystal containing different metals is
+supported.
 
 # Modules
 The program consists of four main modules:

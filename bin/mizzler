@@ -49,7 +49,8 @@ def main(argv=None):
     argparser.add_argument('-maxiter', default='500',
                     help='Maximum steps when minimizing potential')
     argparser.add_argument('-print_dist', '--print_distances', action='store_true',
-                    help='Outputs minimum and maximum distances of resulting structure')
+                    help='Outputs minimum and maximum distances of\
+                          resulting structure')
     # Parse arguments
     argcomplete.autocomplete(argparser)
     args = argparser.parse_args()
@@ -98,6 +99,8 @@ def main(argv=None):
     print("----------------------------------------------------------------------")
     print("Atom     Type    OH-frac     OH2-frac    "+\
           "Nmax   d_MOH   d_MOH2    <MOH")
+
+    #Get data from config.wet
     for atom in atoms:
         element = atom.get("element")
         metalData = parse_data(element)
@@ -125,8 +128,10 @@ def main(argv=None):
         else:
             raise ValueError("Unknown keyword {}".format(coordination))
 
-    print("Solvate residues will be named: OH -> " + OHresname + ", OH2 -> " + OH2resname)
-    print("______________________________________________________________________")
+    print("Solvate residues will be named: OH -> " + OHresname + ", OH2 -> " +\
+           OH2resname)
+    print("________________________________________________________________"+\
+          "______")
     ### RUN ALGORITHM ###
 
     # Create Wetter object
@@ -135,12 +140,14 @@ def main(argv=None):
     wet.remove_low_coordinated(Nmax, element, check=args.check)
 
     # Specify which types of atoms that should be hydrated
-    wet.get_coordinates({"Nmax": Nmax, "element": element, "coordination": Nmax - 1,\
-                 "OH": hydroxylFrac, "OH2": waterFrac, "O": 0.05,\
+    wet.get_coordinates({"Nmax": Nmax, "element": element,\
+                 "coordination": Nmax - 1,
+                 "OH": hydroxylFrac, "OH2": waterFrac,\
                  "dMOH": d_MOH, "dMOH2":d_MOH2, "<MOH":angle})
 
-    wet.get_coordinates({"Nmax": Nmax, "element": element, "coordination": Nmax - 2,\
-                 "OH": dHydroxylFrac, "OH2": dWaterFrac, "O": 0.1,\
+    wet.get_coordinates({"Nmax": Nmax, "element": element,\
+                 "coordination": Nmax - 2,
+                 "OH": dHydroxylFrac, "OH2": dWaterFrac,\
                  "dMOH": d_MOH, "dMOH2":d_MOH2, "<MOH":angle})
 
     # Run minimization
@@ -151,7 +158,8 @@ def main(argv=None):
     wet.save(fileWet, OHresname, OH2resname)
 
     print ""
-    print ("""\"But we both know what memories can bring, they bring diamonds and rust\" \n -- Judas Priest""")
+    print ("\"But we both know what memories can bring, they bring"+\
+           " diamonds and rust\" \n -- Judas Priest")
 
 # "\"And all that I have come to lose"
 # "Gone so long it doesn't matter anyway"
