@@ -10,7 +10,8 @@ hydration shells to arbitrary metal oxide surfaces.
 Hydrates metal oxides in the pdb format with OH2 and OH. In `config.wet` the
 user specifies which metals to hydrate and in what ratio. Custom config files
 are included using the `-c` flag, if no config file is supplied the default
-config file is used. Hydrating a crystal containing different metals is
+config file is used. Defult name for the output pdb file is 
+`inputfilename_wet.pdb`Hydrating a crystal containing different metals is
 supported.
 
 # Modules
@@ -58,18 +59,18 @@ python setup.py build_ext --inplace
 ```
 
 # Usage
-
+To run the program with default settings, only a pdb-file is required as input
 ```bash
 ./mizzler input.pdb
 ```
 optional flags:
 ```
--s (silent) -o (ouput filename) -c (config file) --check [none, metal, all] --log(output log file) -solver [L-BFGS-B, SLSQP] -maxiter (max iterations)
+-s (silent) -o (ouput filename) -c (config file) --check [none, metal, all] --log(output log file) -solver [L-BFGS-B, SLSQP] -maxiter (max iterations) -print_dist (output min and max distances in resulting pdb file.)
 ```
 
 # Examples
 ## Config file
-`config.wet`
+`config.wet` (This is also the default config file)
 ```
 atom Ti: surface
 	water: 1.0
@@ -81,6 +82,7 @@ atom Ti: defect
 end
 resname SOL
 ```
+Nmax-1 coordinated atoms are named surface and Nmax-2 coordinated atoms are named defect in `config.wet`.
 
 ```bash
 ./mizzler input.pdb -c config.wet
