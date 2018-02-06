@@ -82,12 +82,11 @@ atom Ti: defect
 end
 resname SOL
 ```
-Nmax-1 coordinated atoms are named surface and Nmax-2 coordinated atoms are named defect in `config.wet`.
 
 ```bash
 ./mizzler input.pdb -c config.wet
 ```
-will put water on all Nmax-1 coordinated Ti atoms, each Nmax-2 coordinated atom will have a 50/50 chance of being hydrated with water and/or hydroxyl.
+will put water on all Nmax-1 (surface) coordinated Ti atoms, each Nmax-2 (defect) coordinated atom will have a 50/50 chance of being hydrated with water and/or hydroxyl.
 # Other notes
 ## Non-standard packages:
 	*numpy
