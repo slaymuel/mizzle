@@ -5,10 +5,8 @@ from radish import Topologizer
 import sys
 import argcomplete
 import argparse
-from timeit import default_timer as timer
 import numpy as np
 import os
-from IPython import embed
 
 # mizzle imports
 from mizzle.WetParser import parse_config, parse_data
@@ -42,7 +40,7 @@ def main(argv=None):
                            help="Param: Silence is golden")
     argparser.add_argument("-log", "--log", action="store_true",
                            help="Write log file for optimization")
-    argparser.add_argument('--check', default='all', nargs='?',
+    argparser.add_argument('-check', default='all', nargs='?',
                     choices=['none', 'metal', 'all'],
                     help='')
     argparser.add_argument('-solver', default='L-BFGS-B', nargs='?',
@@ -50,6 +48,8 @@ def main(argv=None):
                     help='Minimization method')
     argparser.add_argument('-maxiter', default='500',
                     help='Maximum steps when minimizing potential')
+    argparser.add_argument('-print_dist', '--print_distances', action='store_true',
+                    help='Outputs minimum and maximum distances of resulting structure')
     # Parse arguments
     argcomplete.autocomplete(argparser)
     args = argparser.parse_args()
@@ -135,11 +135,11 @@ def main(argv=None):
     wet.remove_low_coordinated(Nmax, element, check=args.check)
 
     # Specify which types of atoms that should be hydrated
-    wet.solvate({"Nmax": Nmax, "element": element, "coordination": Nmax - 1,\
+    wet.get_coordinates({"Nmax": Nmax, "element": element, "coordination": Nmax - 1,\
                  "OH": hydroxylFrac, "OH2": waterFrac, "O": 0.05,\
                  "dMOH": d_MOH, "dMOH2":d_MOH2, "<MOH":angle})
 
-    wet.solvate({"Nmax": Nmax, "element": element, "coordination": Nmax - 2,\
+    wet.get_coordinates({"Nmax": Nmax, "element": element, "coordination": Nmax - 2,\
                  "OH": dHydroxylFrac, "OH2": dWaterFrac, "O": 0.1,\
                  "dMOH": d_MOH, "dMOH2":d_MOH2, "<MOH":angle})
 
@@ -147,23 +147,11 @@ def main(argv=None):
     wet.optimize()
 
     #Create atoms and append to file
-    wet.wet()
+    wet.wet(print_dist = args.print_distances)
     wet.save(fileWet, OHresname, OH2resname)
-    print("               .------------------------------------.")
-    print("       _,,_   ( Well that was a quick burst of rain! )")
-    print("     /`    `\\ /'------------------------------------'")
-    print("    / / 6 6\\ \\")
-    print("    \\/\\  Y /\\/")
-    print("     / `'U` \\ ")
-    print("  , (  \\   | \\")
-    print("  |\\|\\_/   \\_/ ")
-    print("  \\/'.  \\  /'\\ ")
-    print("   \\    /=\\  /")
-    print("   /____)/____)")
 
-# "\"But we both know what memories can bring"
-# "They bring diamonds and rust\""
-# "- Judas Priest"
+    print ""
+    print ("""\"But we both know what memories can bring, they bring diamonds and rust\" \n -- Judas Priest""")
 
 # "\"And all that I have come to lose"
 # "Gone so long it doesn't matter anyway"

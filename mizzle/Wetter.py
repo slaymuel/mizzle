@@ -575,7 +575,7 @@ class Wetter:
                     np.empty([0], dtype=int))
 
 
-    def solvate(self,params):
+    def get_coordinates(self,params):
         """Calculates coordinates of solvate for specified metal center type
 
         Parameters
@@ -715,7 +715,7 @@ class Wetter:
         self.__watVectors = vectors[len(self.__hydCoords):]
 
 
-    def wet(self):
+    def wet(self, print_dist = False):
         """Creates atoms at the calculated coordinates
 
         Notes
@@ -746,22 +746,22 @@ class Wetter:
         maxStructDist = 0
 
         # Generate output
-        if(not self.silent):
+        if(print_dist):
             minODist,\
                 minHDist,\
                 minStructDist,\
                 maxStructDist = shortest_distance(coords.astype(float), elements,\
                                                 (self.topol.trj.xyz[0]*10).astype(float),\
                                                 self.boxVectors.astype(float))
-        self.__verboseprint("Shortest O-O distance in solvent: " +\
-                             str(minODist) + " Angstrom.")
-        self.__verboseprint("Shortest H-H distance in solvent: " +\
-                             str(minHDist) + " Angstrom.")
-        self.__verboseprint("Shortest distance between solvent and structure:"\
-                            + " " + str(minStructDist) + " Angstrom.")
-        self.__verboseprint("Longest distance between solvent oxygens and "+\
-                            "structure: " + str(maxStructDist) +\
-                            " Angstrom.\n")
+            print("Shortest O-O distance in solvent: " +\
+                                str(minODist) + " Angstrom.")
+            print("Shortest H-H distance in solvent: " +\
+                                str(minHDist) + " Angstrom.")
+            print("Shortest distance between solvent and structure:"\
+                                + " " + str(minStructDist) + " Angstrom.")
+            print("Longest distance between solvent oxygens and "+\
+                                "structure: " + str(maxStructDist) +\
+                                " Angstrom.\n")
 
     def remove_low_coordinated(self, Nmax, element, check = 'all'):
         """Removes low coordinated atoms

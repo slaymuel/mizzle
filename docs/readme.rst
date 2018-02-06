@@ -22,7 +22,7 @@ Usage
 -c  (filename.wet) Supply custom config file 
 --check  [none, metal, all (default)] How to remove low coordinated atoms. 'none' -> do not remove any atoms, 'metal' -> only remove low coordianted metal atoms, all -> remove all low coordinated atoms. 
 --log  (output log file) Print minimization progress to 'minimization.log'
--solver  [L-BFGS-B, SLSQP] Solver for the minimization
+-solver  [L-BFGS-B (default), SLSQP] Solver for the minimization
 -maxiter  (max iterations) Max iterations for the minimizer
 
 Wetting Options

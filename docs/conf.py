@@ -39,11 +39,12 @@ extensions = ['sphinx.ext.autodoc',
     'sphinx.ext.todo',
     'sphinx.ext.viewcode',
     'numpydoc',
-    'sphinx.ext.mathjax']
+ #   'sphinx.ext.mathjax',
+    'rst2pdf.pdfbuilder']
 numpydoc_show_class_members = False
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
-
+pdf_documents = [('index', u'rst2pdf', u'Mizzle Documentation', u'Samuel Stenberg'),]
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
 #
