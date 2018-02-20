@@ -93,7 +93,7 @@ def parse_data(element):
     while(i < len(content)):
         if(element in content[i]):
             i += 1
-            while(not any(atom in content[i] for atom in atomList)):
+            while(content[i][0] == " " and i < len(content)):
                 if("Nmax:" in content[i]):
                     colonIndex = content[i].index(":")
                     metalData['Nmax'] = int(content[i][colonIndex + 1:])
@@ -103,10 +103,12 @@ def parse_data(element):
                     colonIndex = content[i].index(":")
                     metalData['d_MOH'] = float(content[i][colonIndex + 1:])
                     foundDMOH = True
+
                 elif("d_MOH2:" in content[i]):
                     colonIndex = content[i].index(":")
                     metalData['d_MOH2'] = float(content[i][colonIndex + 1:])
                     foundDMOH2 = True
+
                 elif("<MOH:" in content[i]):
                     colonIndex = content[i].index(":")
                     metalData['<MOH'] = float(content[i][colonIndex + 1:])

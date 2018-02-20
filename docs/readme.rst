@@ -25,6 +25,8 @@ Usage
 -solver  [L-BFGS-B (default), SLSQP] Solver for the minimization
 -maxiter  (max iterations) Max iterations for the minimizer
 
+For partially wetted structures the `-check` flag should be set to `metal` to prevent removal.
+
 Wetting Options
 ---------------
 

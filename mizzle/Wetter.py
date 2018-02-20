@@ -375,17 +375,32 @@ class Wetter:
         Coordination shell calculated using the Topologizer module from radish.
 
         """
-        centerIndices = self.topol.extract(center, environment =
-                                           {'O': coordination})\
-                                         .filter("i").squeeze()
+        try:
+            centerIndices = self.topol.extract(center, environment =
+                                            {'O': coordination})\
+                                            .filter("i").squeeze()
+        except IndexError:
+            centerIndices = pd.DataFrame()
 
-        neighbourgraph = self.topol.bondgraph.loc[self.topol.\
-                bondgraph['j'].isin(centerIndices)].\
-                sort_values(['j'])[['i', 'j']].pivot(columns= 'j').\
-                apply(lambda x: pd.Series(x.dropna().values)).\
-                apply(np.int64)['i']
+        print(type(centerIndices))
+        if(type(centerIndices) != pd.core.series.Series):
+            #Extract has found 0 or 1 centers
+            if(centerIndices.size == 0):
+                centerIndices = []
+            else:
+                centerIndices = np.array([centerIndices])
+            print("not")
 
-        return (centerIndices, neighbourgraph)
+        if(len(centerIndices) > 0):
+            neighbourgraph = self.topol.bondgraph.loc[self.topol.\
+                    bondgraph['j'].isin(centerIndices)].\
+                    sort_values(['j'])[['i', 'j']].pivot(columns= 'j').\
+                    apply(lambda x: pd.Series(x.dropna().values)).\
+                    apply(np.int64)['i']
+
+            return (centerIndices, neighbourgraph)
+        else:
+            return ([] ,[])
 
 
     def __calculate_pair_vectors(self, coordination,\
@@ -702,6 +717,10 @@ class Wetter:
         Collects all coordinates and invokes optimization routine
 
         """
+        if(len(self.__hydCoords) < 1 and len(self.__watCoords) < 1):
+            raise IndexError("No suitable metal centers found (did you specify\
+                              the correct atoms in config.wet?)")
+
         vectors = np.empty([0, 3], dtype=float)
         coords = np.empty([0, 3], dtype=float)
         centers= np.empty([0], dtype=int)

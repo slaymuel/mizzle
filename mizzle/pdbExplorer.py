@@ -156,7 +156,7 @@ def remove_low_coordinated(topol, Nmax, element, silent, check):
         remove_metal = True
         remove_oxygen = True
     elif(check == 'none'):
-        print("--check flag is set to 'none', will not remove any low coordinated atoms...\n")
+        print("-check flag is set to 'none', will not remove any low coordinated atoms...\n")
         return topol
     elif(check == 'metal'):
         print("Will not remove low coordinated oxygen\n")
@@ -175,11 +175,12 @@ def remove_low_coordinated(topol, Nmax, element, silent, check):
         if(remove_metal):
             i = 3   # Coordination less than or equal to Nmax-3
             while(i <= Nmax):
-                centerIndices = topol.extract(element, environment = {'O': Nmax - i})\
-                                    .filter("i").squeeze()
-
+                try:
+                    centerIndices = topol.extract(element, environment = {'O': Nmax - i})\
+                                        .filter("i").squeeze()
+                except IndexError:
+                    centerIndices = []
                 indices.extend(np.atleast_1d(centerIndices))
-
                 i += 1
 
         if(remove_oxygen):
